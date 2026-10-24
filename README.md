@@ -46,13 +46,13 @@ cd pet-agent
 npm install
 npm start
 ```
-或直接使用打包好的 App（见 Releases）。
+或直接使用打包好的 App：从 [Releases](https://github.com/CianLaw/pet-agent/releases) 下载 `doubao-pet-macOS-arm64.zip`（Apple Silicon），解压后拖入应用程序运行。
 
 ### Windows
-解压 Releases 中的 `豆包桌宠-Windows-x64.zip`，运行 `豆包桌宠.exe` 即可。
+从 [Releases](https://github.com/CianLaw/pet-agent/releases) 下载 `doubao-pet-Windows-x64.zip`，解压后运行 `豆包桌宠.exe` 即可。
 
 ### Android
-安装 Releases 中的 APK → 打开 App → 填入 API Key → 授予悬浮窗权限 → 点"启动桌宠"。
+从 [Releases](https://github.com/CianLaw/pet-agent/releases) 安装 `doubao-pet-v5.4-android.apk` → 打开 App → 填入 API Key → 授予悬浮窗权限 → 点"启动桌宠"。
 
 ## ⚙️ 配置
 

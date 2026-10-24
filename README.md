@@ -157,3 +157,10 @@ MIT License —— 自由使用、修改、分发，请保留作者署名。
 - **设置**：API 配置 + 一键检查更新 / 自动更新
 
 > 示例：`assets/skin/test/` 就是一份可直接使用的贴图皮肤模板。
+
+## 手机版（Android / PWA）
+
+- **在线用（推荐）**：手机浏览器打开本仓库的 `mobile/index.html`（或部署到任意静态托管），添加至主屏幕即可当 App 用。已适配刘海屏/手势条安全区、左右边距对齐，不会被遮挡。
+- **安装 APK**：进入 [Releases](https://github.com/CianLaw/pet-agent/releases) 下载 `doubao-petagent-mobile-vX.Y.Z.apk`（Android 8+，允许安装未知来源应用后直接装）。
+- **自己打包 APK**：仓库 Actions → **Build Android APK** → Run workflow，云端自动构建并产出安装包（每次发版 tag 也会自动构建附到 Release）。
+- 手机版功能：触摸互动（摸头/喂食/陪玩）、饱食/心情/精力/好感状态、皮肤切换、AI 聊天（可选，配置 API Key 后联网，无 Key 离线陪伴）。

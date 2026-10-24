@@ -9,7 +9,7 @@
  */
 'use strict';
 
-const { app, BrowserWindow, ipcMain, screen, Menu, dialog, powerMonitor } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Menu, dialog, powerMonitor, desktopCapturer } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -283,6 +283,122 @@ function chatWithPet(userText) {
   });
 }
 
+/* 通用 POST：经本地代理转发 OpenAI 兼容请求（视觉分析也走这里，统一记账） */
+function postViaProxy(path, body) {
+  return new Promise((resolve) => {
+    if (!proxy) return resolve({ ok: false, error: 'proxy-off' });
+    const req = http.request({
+      host: '127.0.0.1',
+      port: config.proxyPort || 8899,
+      path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', (c) => (data += c));
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          const text = (parsed.choices && parsed.choices[0] && parsed.choices[0].message && parsed.choices[0].message.content) || '';
+          resolve({ ok: true, text: text.trim() });
+        } catch (e) {
+          resolve({ ok: false, error: 'parse' });
+        }
+      });
+    });
+    req.on('error', (e) => resolve({ ok: false, error: e.message }));
+    req.end(body);
+  });
+}
+
+/* ---------------- 屏幕感知：让桌宠"看见"（豆包/视觉模型理解） ----------------
+ * 定时截屏缩略图 → OpenAI 兼容视觉接口 → 结构化 JSON → 广播给渲染层触发台词/动作。
+ * 无 API Key、接口失败或权限缺失时静默降级，不影响现有功能。 */
+let visionTimer = null;
+let visionBusy = false;
+const VISION_DEFAULT_PROMPT =
+  '你是「豆包桌宠」的眼睛，正在观察主人电脑屏幕。请分析屏幕主要内容，判断主人在做什么，' +
+  '严格只输出一个 JSON 对象（不要任何其他文字）：\n' +
+  '{"action":"work|video|chat|study|game|idle|other","mood":"happy|calm|curious|sleepy|cheerful","bubble":"一句可爱贴合场景的桌宠短台词，不超过18字","wantInteract":true|false}\n' +
+  'bubble 用活泼可爱的二次元口吻，例如看到代码就说"又在写代码呀，我陪你~"，看到视频就说"看电影呢？我也想看~"。';
+
+function visionConfig() { return (config && config.vision) || {}; }
+
+async function captureScreenBase64() {
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: { width: 1280, height: 720 }
+  });
+  if (!sources || !sources.length) return null;
+  let source = sources[0];
+  try {
+    const primary = screen.getPrimaryDisplay();
+    const found = sources.find((s) => String(s.display_id) === String(primary.id));
+    if (found) source = found;
+  } catch (_) { /* 忽略 */ }
+  if (!source || !source.thumbnail || source.thumbnail.isEmpty()) return null;
+  return source.thumbnail.toPNG().toString('base64');
+}
+
+async function analyzeScreen() {
+  if (visionBusy) return;
+  const vc = visionConfig();
+  if (vc.enabled === false) return;
+  if (!config.apiKey && !process.env.DEEPSEEK_API_KEY) return; // 无 Key：静默降级
+  visionBusy = true;
+  try {
+    const b64 = await captureScreenBase64();
+    if (!b64) return;
+    const model = vc.model || config.chatModel || 'deepseek-chat';
+    const prompt = vc.prompt || VISION_DEFAULT_PROMPT;
+    const body = JSON.stringify({
+      model,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          { type: 'image_url', image_url: { url: `data:image/png;base64,${b64}` } }
+        ]
+      }],
+      stream: false,
+      max_tokens: 300
+    });
+    const result = await postViaProxy('/v1/chat/completions', body);
+    if (!result.ok || !result.text) return;
+    const m = result.text.match(/\{[\s\S]*\}/);
+    if (!m) return;
+    const parsed = JSON.parse(m[0]);
+    if (!parsed || typeof parsed.bubble !== 'string' || !parsed.bubble.trim()) return;
+    broadcast('pet-vision', {
+      action: String(parsed.action || 'other'),
+      mood: String(parsed.mood || 'calm'),
+      bubble: parsed.bubble.trim().slice(0, 24),
+      wantInteract: !!parsed.wantInteract,
+      ts: Date.now()
+    });
+    console.log('[vision]', parsed.action, '|', parsed.bubble);
+  } catch (e) {
+    console.log('[vision] fail:', e.message); // 静默降级，不影响主功能
+  } finally {
+    visionBusy = false;
+  }
+}
+
+function startVisionLoop() {
+  const vc = visionConfig();
+  if (vc.enabled === false) return;
+  const sec = Math.max(10, parseInt(vc.intervalSec, 10) || 60);
+  setTimeout(() => analyzeScreen(), 8000); // 等窗口与 API 就绪后首次感知
+  visionTimer = setInterval(analyzeScreen, sec * 1000);
+}
+
+function stopVisionLoop() {
+  if (visionTimer) { clearInterval(visionTimer); visionTimer = null; }
+}
+
 /* ---------------- 提醒 ---------------- */
 let reminders = {};  // { pomodoroEnd, lastDrink, lastSit }
 
@@ -443,6 +559,8 @@ async function init() {
   if (pet.data.walkEnabled) {
     setTimeout(() => startWalk(), 1200);
   }
+  // 屏幕感知：让桌宠"看见"主人屏幕（无 Key / 失败时自动静默）
+  startVisionLoop();
 }
 
 app.whenReady().then(init);
@@ -455,6 +573,7 @@ app.on('will-quit', () => {
   if (monitor) monitor.stop();
   if (proxy) proxy.stop();
   stopWalk();
+  stopVisionLoop();
 });
 
 // ---- IPC ----

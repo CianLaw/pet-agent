@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld('petAgent', {
     ipcRenderer.on('pet-say', listener);
     return () => ipcRenderer.removeListener('pet-say', listener);
   },
+  onPetVision: (fn) => {
+    const listener = (_e, payload) => fn(payload);
+    ipcRenderer.on('pet-vision', listener);
+    return () => ipcRenderer.removeListener('pet-vision', listener);
+  },
   onUsageRemind: (fn) => {
     const listener = (_e, usage) => fn(usage);
     ipcRenderer.on('usage-remind', listener);

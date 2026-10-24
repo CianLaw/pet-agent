@@ -580,6 +580,20 @@
 
   window.petAgent.onPetSay((text) => showMini(text));
 
+  /* 屏幕感知：主进程视觉分析结果 → 台词 + 表情动作 */
+  window.petAgent.onPetVision((v) => {
+    if (!v || !v.bubble) return;
+    showMini(v.bubble);
+    const mood = v.mood || 'calm';
+    const action = v.action || 'other';
+    if (mood === 'happy' || mood === 'cheerful') spawnHearts(2);
+    if (action === 'video' || action === 'game') {
+      petBounce();                      // 娱乐场景：轻轻"凑热闹"
+    } else if (action === 'work' || action === 'study') {
+      /* 工作/学习：保持安静陪伴（气泡已表达），不做打扰动作 */
+    }
+  });
+
   window.petAgent.onUsageRemind((usage) => {
     const total = (usage && usage.total) != null ? usage.total : null;
     const cost = (usage && usage.cost) != null ? usage.cost : null;

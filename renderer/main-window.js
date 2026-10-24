@@ -180,6 +180,67 @@
     }
   });
 
+  /* ---------- 更新日志 ---------- */
+  const CHANGELOG = [
+    { v: '5.4.8', date: '2026-10-24', items: [
+      '新增多款桌宠皮肤：橘猫、柴犬、小白熊（皮肤页可切换）',
+      '新增「搬桌子」动作动画：散步时宠物会把桌子搬着走，不再凭空消失',
+      '新增更新日志功能',
+      '走路动画优化：步伐更自然，带上下起伏'
+    ]},
+    { v: '5.4.7', date: '2026-10-24', items: [
+      '应用图标改为纯白背景 Q 版头像（macOS / Android / PWA 全端统一）'
+    ]},
+    { v: '5.4.6', date: '2026-10-24', items: [
+      '重新设计应用图标：AI 生成磨砂玻璃质感（桌面 + 手机版）'
+    ]},
+    { v: '5.4.5', date: '2026-10-24', items: [
+      '手机版 APP 发布：Android APK 云端自动构建、GitHub 下载',
+      '主界面图标升级为 SVG 线性风格'
+    ]},
+    { v: '5.4.4', date: '2026-10-24', items: [
+      '新增 APP 主界面：首页 / 皮肤 / 模块 / 设置四页',
+      '新增皮肤系统与模块开关，可自由切换形象与能力'
+    ]},
+    { v: '5.4.3', date: '2026-10-24', items: [
+      '修复 macOS 辅助功能权限弹窗反复出现的问题'
+    ]},
+    { v: '5.4.2', date: '2026-10-24', items: [
+      '屏幕感知（视觉理解）：主动看屏幕、应景台词与表情联动'
+    ]},
+    { v: '5.4.1', date: '2026-10-24', items: [
+      '软件内一键自动更新：设置页检查并更新，无需重装'
+    ]},
+    { v: '5.4.0', date: '2026-10-24', items: [
+      '豆包桌宠初版：Live2D 桌宠 + AI 聊天 + 好感度养成 + 喂食/摸头/陪玩互动'
+    ]}
+  ];
+  function renderChangelog() {
+    const body = $('changelogBody');
+    body.innerHTML = CHANGELOG.map((c) => `
+      <div class="mw-log-item">
+        <div class="mw-log-head">
+          <span class="mw-log-ver">v${c.v}</span>
+          <span class="mw-log-date">${c.date}</span>
+        </div>
+        <ul class="mw-log-list">${c.items.map((t) => `<li>${t}</li>`).join('')}</ul>
+      </div>
+    `).join('');
+  }
+  function openChangelog() {
+    renderChangelog();
+    $('changelogModal').classList.remove('hidden');
+  }
+  function closeChangelog() {
+    $('changelogModal').classList.add('hidden');
+  }
+  $('btnChangelog').addEventListener('click', openChangelog);
+  $('changelogClose').addEventListener('click', closeChangelog);
+  $('changelogMask').addEventListener('click', closeChangelog);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeChangelog();
+  });
+
   /* ---------- 初始化 ---------- */
   window.petAgent.getSettings().then((s) => {
     if (s && s.ok) $('mwVersion').textContent = 'v' + s.version;

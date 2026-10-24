@@ -98,10 +98,23 @@
           <div class="mw-row-right">
             <button class="mw-btn" id="btnCheckUpdate">检查更新</button>
             <button class="mw-btn primary" id="btnApplyUpdate" disabled>立即更新</button>
+            <button class="mw-btn" id="btnChangelog">更新日志</button>
           </div>
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- 更新日志弹窗 -->
+  <div class="mw-modal hidden" id="changelogModal">
+    <div class="mw-modal-mask" id="changelogMask"></div>
+    <div class="mw-modal-box">
+      <div class="mw-modal-head">
+        <span class="mw-modal-title">更新日志</span>
+        <span class="mw-modal-close" id="changelogClose">✕</span>
+      </div>
+      <div class="mw-modal-body" id="changelogBody"></div>
+    </div>
   </div>
 
   <script src="main-window.js"></script>

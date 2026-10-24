@@ -570,10 +570,9 @@
     btn.disabled = false;
   });
 
-  /* ---------- 散步：宠物离开桌子，窗口/桌子保持原位 ----------
-   * Live2D 场景（桌子+坐姿）是一体的，散步时整体隐藏；
-   * 换成用户自己的角色精灵（assets/pet.png）在窗口内左右散步，
-   * 窗口位置完全不动 —— 不再"搬着桌子跑"。
+  /* ---------- 散步：宠物搬着桌子散步 ----------
+   * 开始：宠物+桌子从窗口外滑入（搬着桌子来），随后左右往返走；
+   * 停止：宠物搬着桌子滑出窗口，再恢复 Live2D 场景 —— 全程可见，不凭空出现/消失。
    */
   function setLive2DVisible(visible) {
     const el = document.getElementById('live2d-widget');
@@ -582,17 +581,36 @@
     }
   }
 
+  function finishWalkOut() {
+    const team = $('walkTeam');
+    team.classList.remove('out', 'in', 'walk');
+    team.onanimationend = null;
+    walkLayer.classList.add('hidden');
+    walkSprite.classList.add('hidden');
+    setLive2DVisible(true);
+    clearInterval(walkAnim);
+    walkAnim = null;
+  }
+
   function startWalkAnim() {
     if (walkAnim) return;
     setLive2DVisible(false);
+    // 散步时隐藏用量面板与台词气泡，露出"搬桌散步"的画面
+    bubble.classList.add('hidden');
+    miniBubble.classList.add('hidden');
     walkLayer.classList.remove('hidden');
     walkSprite.classList.remove('hidden');
     // 散步精灵也可交互（点击互动 + 右键菜单 → 可随时"保持静止"）
     bindPetEvents(walkSprite);
-    // 重置动画以便每次重新播放
-    walkSprite.style.animation = 'none';
-    void walkSprite.offsetWidth;
-    walkSprite.style.animation = '';
+    const team = $('walkTeam');
+    team.classList.remove('out', 'in', 'walk');
+    void team.offsetWidth;
+    team.classList.add('in');              // 搬着桌子从窗口外滑入
+    team.onanimationend = () => {
+      if (!team.classList.contains('in')) return;
+      team.classList.remove('in');
+      team.classList.add('walk');          // 开始搬桌散步循环
+    };
     walkAnim = setInterval(() => {
       if (walkLayer.classList.contains('hidden')) return;
     }, 60000);
@@ -600,11 +618,17 @@
 
   function stopWalkAnim() {
     if (!walkAnim) return;
-    clearInterval(walkAnim);
-    walkAnim = null;
-    walkLayer.classList.add('hidden');
-    walkSprite.classList.add('hidden');
-    setLive2DVisible(true);
+    const team = $('walkTeam');
+    if (team.classList.contains('walk') || team.classList.contains('in')) {
+      team.classList.remove('walk', 'in');
+      void team.offsetWidth;
+      team.classList.add('out');           // 搬着桌子滑出窗口
+      team.onanimationend = () => {
+        if (team.classList.contains('out')) finishWalkOut();
+      };
+    } else {
+      finishWalkOut();
+    }
   }
 
   window.petAgent.onPetWalkStart(startWalkAnim);

@@ -95,7 +95,12 @@
   render();
 
   /* ---------- 皮肤 ---------- */
-  const SKINS = [{ id: 'default', name: '默认' }];
+  const SKINS = [
+    { id: 'default', name: '默认' },
+    { id: 'cat', name: '橘猫' },
+    { id: 'shiba', name: '柴犬' },
+    { id: 'bear', name: '小白熊' }
+  ];
   function renderSkins() {
     const list = $('skinList');
     list.innerHTML = '';

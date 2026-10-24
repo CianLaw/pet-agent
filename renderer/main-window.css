@@ -145,3 +145,29 @@ body {
 .mw-btn.primary { background: linear-gradient(135deg, rgba(120,160,255,0.6), rgba(150,120,255,0.55)); border-color: rgba(160,180,255,0.35); }
 .mw-btn.primary:hover { background: linear-gradient(135deg, rgba(130,170,255,0.7), rgba(160,130,255,0.65)); }
 .mw-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ================= 更新日志弹窗 ================= */
+.mw-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
+.mw-modal.hidden { display: none; }
+.mw-modal-mask { position: absolute; inset: 0; background: rgba(10,12,24,0.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.mw-modal-box {
+  position: relative; width: min(560px, 88vw); max-height: 70vh;
+  background: linear-gradient(160deg, rgba(44,48,72,0.92), rgba(30,34,56,0.94));
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden;
+}
+.mw-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.mw-modal-title { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.95); }
+.mw-modal-close { cursor: pointer; color: rgba(255,255,255,0.6); font-size: 15px; padding: 2px 6px; border-radius: 6px; }
+.mw-modal-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.mw-modal-body { padding: 8px 18px 16px; overflow-y: auto; }
+.mw-modal-body::-webkit-scrollbar { width: 6px; }
+.mw-modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 3px; }
+
+.mw-log-item { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.mw-log-item:last-child { border-bottom: none; }
+.mw-log-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; }
+.mw-log-ver { font-size: 14px; font-weight: 600; color: rgba(150,180,255,0.95); }
+.mw-log-date { font-size: 11px; color: rgba(255,255,255,0.45); }
+.mw-log-list { margin: 0; padding-left: 18px; }
+.mw-log-list li { font-size: 12.5px; line-height: 1.7; color: rgba(255,255,255,0.82); }

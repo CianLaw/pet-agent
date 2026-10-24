@@ -408,7 +408,11 @@ body { position: relative; }
   100% { transform: translate(var(--dx, 40px), var(--dy, -90px)) scale(1.3); opacity: 0; }
 }
 
-/* ================= 散步层：宠物离开桌子散步（窗口/桌子不移动） ================= */
+/* ================= 散步层：宠物搬着桌子散步 =================
+ * 开始散步：宠物+桌子从窗口外滑入（搬着桌子来）；
+ * 散步中：宠物扛着小圆桌左右往返走，桌子同步跟随；
+ * 停止：宠物搬着桌子滑出窗口，再恢复 Live2D 场景。
+ */
 .walk-layer {
   position: absolute;
   left: 0;
@@ -420,34 +424,110 @@ body { position: relative; }
 }
 .walk-layer.hidden { display: none; }
 
-.walk-sprite {
+.walk-team {
   position: absolute;
-  bottom: 0;
   left: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+.walk-team.in  { animation: walkIn  .85s cubic-bezier(.25,.8,.3,1) forwards; }
+.walk-team.walk{ animation: petWalk 9s linear infinite; }
+.walk-team.out { animation: walkOut .7s ease-in forwards; }
+
+/* 队伍宽约 150px（桌子在上、宠物在下纵向堆叠），窗口宽 340px：
+ * 入场：从窗口左侧外滑入（宠物扛着桌子走进来）；
+ * 散步：在窗口内左右往返（左上角 x 0 ↔ 190，右缘贴边）；
+ * 出场：搬着桌子从右侧滑出 —— 全程可见，不凭空出现/消失。
+ */
+@keyframes walkIn  { to { transform: translateX(0); } from { transform: translateX(-180px); } }
+@keyframes walkOut { to { transform: translateX(340px); } }
+
+/* 宠物精灵：走路步态（上下起伏 + 轻微前倾摇摆 + 转身镜像） */
+.walk-sprite {
+  position: relative;
+  bottom: auto;
+  left: auto;
   width: 150px;
   height: 150px;
   background: url('../assets/pet.png') no-repeat center / contain;
   pointer-events: auto;   /* 散步精灵可交互（点击/右键） */
   cursor: grab;
-  /* 左右往返散步 + 轻微上下浮动（步伐感） */
-  animation: petWalk 9s linear infinite;
+  animation: petBob 0.55s ease-in-out infinite, petTurn 9s linear infinite;
 }
 
+/* 被扛着的小圆桌：在宠物头顶，微晃（搬运感） */
+.walk-desk {
+  position: relative;
+  width: 132px;
+  height: 96px;
+  margin-bottom: 4px;
+  animation: deskCarry 1.3s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes deskCarry {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-5px) rotate(1.6deg); }
+}
+/* 桌面 */
+.walk-desk::before {
+  content: '';
+  position: absolute;
+  left: 2px; right: 2px; top: 4px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #c0955f, #8a5f38);
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,.28), 0 5px 10px rgba(0,0,0,.2);
+}
+/* 桌腿连接柱 */
+.walk-desk::after {
+  content: '';
+  position: absolute;
+  left: 34px; right: 34px; top: 32px; bottom: 2px;
+  background: linear-gradient(90deg, #9a6b3f, #7c512e);
+  border-radius: 8px;
+  box-shadow: inset -5px 0 8px rgba(0,0,0,.22);
+}
+.wd-leg {
+  position: absolute;
+  top: 30px;
+  width: 11px;
+  height: 68px;
+  background: linear-gradient(90deg, #8a5f38, #6e4826);
+  border-radius: 5px;
+  box-shadow: inset -3px 0 4px rgba(0,0,0,.25);
+}
+.wd-l1 { left: 16px; }
+.wd-l2 { right: 16px; }
+
+/* 步态起伏 */
+@keyframes petBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30%      { transform: translateY(-7px) rotate(-2deg); }
+  60%      { transform: translateY(0) rotate(0deg); }
+  80%      { transform: translateY(-3px) rotate(2deg); }
+}
+
+/* 队伍只做平移（避免翻转导致位置错乱），转身由宠物精灵自身镜像完成。 */
 @keyframes petWalk {
-  0%   { transform: translateX(-30px) translateY(0) scaleX(1); }
-  10%  { transform: translateX(12%) translateY(-6px) scaleX(1); }
-  20%  { transform: translateX(24%) translateY(0) scaleX(1); }
-  30%  { transform: translateX(36%) translateY(-6px) scaleX(1); }
-  40%  { transform: translateX(48%) translateY(0) scaleX(1); }
-  50%  { transform: translateX(60%) translateY(-6px) scaleX(1); }
-  55%  { transform: translateX(64%) translateY(0) scaleX(1); }
-  57%  { transform: translateX(64%) translateY(-8px) scaleX(1); }  /* 碰边：小跳一下 */
-  60%  { transform: translateX(62%) translateY(0) scaleX(-1); }    /* 转身 */
-  70%  { transform: translateX(48%) translateY(-6px) scaleX(-1); }
-  80%  { transform: translateX(36%) translateY(0) scaleX(-1); }
-  90%  { transform: translateX(24%) translateY(-6px) scaleX(-1); }
-  97%  { transform: translateX(-28px) translateY(-8px) scaleX(-1); }
-  100% { transform: translateX(-30px) translateY(0) scaleX(-1); }
+  0%   { transform: translateX(0px)     translateY(0); }
+  8%   { transform: translateX(45px)    translateY(-6px); }
+  20%  { transform: translateX(100px)   translateY(0); }
+  32%  { transform: translateX(150px)   translateY(-6px); }
+  45%  { transform: translateX(185px)   translateY(0); }
+  52%  { transform: translateX(190px)   translateY(-8px); }   /* 碰右缘 */
+  62%  { transform: translateX(160px)   translateY(0); }
+  74%  { transform: translateX(100px)   translateY(-6px); }
+  86%  { transform: translateX(45px)    translateY(0); }
+  96%  { transform: translateX(8px)     translateY(-6px); }
+  100% { transform: translateX(0px)     translateY(0); }
+}
+/* 转身：只有宠物镜像翻转（桌子不动，仍稳稳扛着） */
+@keyframes petTurn {
+  0%, 48%   { transform: scaleX(1); }
+  52%, 100% { transform: scaleX(-1); }
 }
 
 /* ================= 喂食 / 摸头专属特效 ================= */

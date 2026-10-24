@@ -110,9 +110,15 @@
   <!-- 贴图皮肤层（切换为贴图皮肤时显示，覆盖 Live2D） -->
   <img id="skinImage" alt="" draggable="false" />
 
-  <!-- 散步精灵层：宠物离开桌子散步（窗口/桌子不移动） -->
+  <!-- 散步精灵层：宠物搬着桌子散步（桌子跟随移动，不凭空消失） -->
   <div id="walkLayer" class="walk-layer hidden">
-    <div id="walkSprite" class="walk-sprite"></div>
+    <div id="walkTeam" class="walk-team">
+      <div id="walkDesk" class="walk-desk">
+        <span class="wd-leg wd-l1"></span>
+        <span class="wd-leg wd-l2"></span>
+      </div>
+      <div id="walkSprite" class="walk-sprite"></div>
+    </div>
   </div>
 
   <!-- 睡觉：Zzz + 变暗遮罩 -->

@@ -411,7 +411,7 @@
   });
 
   /* ---------- 鼠标穿透：动态切换 ---------- */
-  const INTERACTIVE_SELECTOR = '#live2d-widget, #live2d-widget canvas, #bubble, #miniBubble, #chatPanel, #chatPanel input, #walkSprite';
+  const INTERACTIVE_SELECTOR = '#live2d-widget, #live2d-widget canvas, #bubble, #miniBubble, #chatPanel, #chatPanel input, #settingsPanel, #settingsPanel input, #settingsPanel button, #walkSprite';
 
   function updateMousePassthrough() {
     const el = document.elementFromPoint(lastMouse.x, lastMouse.y);
@@ -445,6 +445,7 @@
   }
 
   function openChat() {
+    closeSettings();
     chatPanel.classList.remove('hidden');
     // 打开聊天窗时隐藏用量面板，聊天窗拥有最高优先级
     bubble.classList.add('hidden');
@@ -461,6 +462,113 @@
   $('chatClose').addEventListener('click', closeChat);
   // 右键菜单"关闭聊天窗"也调用 closeChat
   window.petAgent.onPetChatClose(closeChat);
+
+  /* ---------- 设置面板（右键菜单「设置…」打开） ---------- */
+  const settingsPanel = $('settingsPanel');
+
+  function openSettings() {
+    closeChat();
+    settingsPanel.classList.remove('hidden');
+    bubble.classList.add('hidden');
+    loadSettings();
+  }
+  function closeSettings() {
+    settingsPanel.classList.add('hidden');
+  }
+
+  function loadSettings() {
+    window.petAgent.getSettings().then((s) => {
+      if (!s || !s.ok) return;
+      $('setCurrentVersion').textContent = s.version || '--';
+      $('setApiBase').value = (s.config.apiBase || '');
+      $('setApiKey').value = '';
+      $('setApiKey').placeholder = s.config.apiKeySet ? (s.config.apiKeyMasked || '已设置 Key') : '未设置 Key';
+      $('setChatModel').value = (s.config.chatModel || '');
+      $('setVisionEnabled').checked = !!s.config.vision.enabled;
+      $('setVisionInterval').value = s.config.vision.intervalSec || 60;
+      $('setVisionModel').value = (s.config.vision.model || '');
+      $('setLatestVersion').textContent = '--';
+      $('setUpdateStatus').textContent = '点击「检查更新」获取最新版本';
+      $('btnApplyUpdate').disabled = true;
+    });
+  }
+
+  $('settingsClose').addEventListener('click', closeSettings);
+  window.petAgent.onSettingsOpen(openSettings);
+
+  $('btnCheckUpdate').addEventListener('click', async () => {
+    const btn = $('btnCheckUpdate');
+    const status = $('setUpdateStatus');
+    btn.disabled = true;
+    status.textContent = '正在检查更新…';
+    try {
+      const r = await window.petAgent.checkUpdate();
+      if (!r || !r.ok) {
+        status.textContent = '检查失败：' + (r && r.error ? r.error : '网络异常');
+        btn.disabled = false;
+        return;
+      }
+      $('setLatestVersion').textContent = r.latest || '--';
+      if (r.hasUpdate) {
+        status.textContent = '发现新版本 ' + r.latest + '！点「立即更新」自动升级';
+        $('btnApplyUpdate').disabled = false;
+      } else {
+        status.textContent = '已是最新版本（' + r.current + '）';
+        $('btnApplyUpdate').disabled = true;
+      }
+    } catch (e) {
+      status.textContent = '检查失败：' + e.message;
+    }
+    btn.disabled = false;
+  });
+
+  $('btnApplyUpdate').addEventListener('click', async () => {
+    const btn = $('btnApplyUpdate');
+    const status = $('setUpdateStatus');
+    btn.disabled = true;
+    status.textContent = '正在下载新版本并升级…请稍候（期间请勿关机）';
+    try {
+      const r = await window.petAgent.applyUpdate();
+      if (!r || !r.ok) {
+        status.textContent = '更新失败：' + (r && r.error ? r.error : '未知错误');
+        btn.disabled = false;
+      } else {
+        status.textContent = '升级完成（' + r.updatedTo + '），正在自动重启…';
+      }
+    } catch (e) {
+      status.textContent = '更新失败：' + e.message;
+      btn.disabled = false;
+    }
+  });
+
+  $('btnSaveSettings').addEventListener('click', async () => {
+    const patch = {
+      apiBase: $('setApiBase').value.trim(),
+      chatModel: $('setChatModel').value.trim(),
+      vision: {
+        enabled: $('setVisionEnabled').checked,
+        intervalSec: parseInt($('setVisionInterval').value, 10) || 60,
+        model: $('setVisionModel').value.trim()
+      }
+    };
+    const keyVal = $('setApiKey').value.trim();
+    if (keyVal) patch.apiKey = keyVal;
+    const btn = $('btnSaveSettings');
+    const status = $('setUpdateStatus');
+    btn.disabled = true;
+    try {
+      const r = await window.petAgent.saveSettings(patch);
+      if (r && r.ok) {
+        status.textContent = '设置已保存，重启桌宠后生效 ✓';
+        loadSettings();
+      } else {
+        status.textContent = '保存失败：' + (r && r.error ? r.error : '未知错误');
+      }
+    } catch (e) {
+      status.textContent = '保存失败：' + e.message;
+    }
+    btn.disabled = false;
+  });
 
   /* ---------- 散步：宠物离开桌子，窗口/桌子保持原位 ----------
    * Live2D 场景（桌子+坐姿）是一体的，散步时整体隐藏；

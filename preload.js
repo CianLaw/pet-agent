@@ -19,6 +19,15 @@ contextBridge.exposeInMainWorld('petAgent', {
     ipcRenderer.on('pet-vision', listener);
     return () => ipcRenderer.removeListener('pet-vision', listener);
   },
+  onSettingsOpen: (fn) => {
+    const listener = () => fn();
+    ipcRenderer.on('pet-settings-open', listener);
+    return () => ipcRenderer.removeListener('pet-settings-open', listener);
+  },
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  saveSettings: (patch) => ipcRenderer.invoke('save-settings', patch),
+  checkUpdate: () => ipcRenderer.invoke('check-update'),
+  applyUpdate: () => ipcRenderer.invoke('apply-update'),
   onUsageRemind: (fn) => {
     const listener = (_e, usage) => fn(usage);
     ipcRenderer.on('usage-remind', listener);

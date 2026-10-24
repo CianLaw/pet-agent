@@ -180,6 +180,73 @@ body { position: relative; }
 .chat-panel .glass-blob.b1 { width: 50px; height: 50px; top: -18px; left: -12px; background: rgba(110,140,255,0.5); }
 .chat-panel .glass-blob.b2 { width: 34px; height: 34px; bottom: -12px; right: -8px; background: rgba(110,160,255,0.35); }
 
+/* ================= 设置面板（磨砂玻璃） ================= */
+.settings-panel {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  width: 300px;
+  max-height: 448px;
+  display: flex;
+  flex-direction: column;
+  padding: 11px 13px 13px;
+  border-radius: 10px;   /* 小圆角 */
+  z-index: 100;
+  overflow-y: auto;
+}
+.settings-panel.hidden { display: none; }
+.settings-panel .glass-blob.b1 { width: 50px; height: 50px; top: -18px; left: -12px; background: rgba(110,140,255,0.5); }
+.settings-panel .glass-blob.b2 { width: 34px; height: 34px; bottom: -12px; right: -8px; background: rgba(110,160,255,0.35); }
+.settings-panel::-webkit-scrollbar { width: 4px; }
+.settings-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 2px; }
+
+.settings-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+.settings-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.92); }
+.settings-body { display: flex; flex-direction: column; gap: 10px; }
+.settings-section { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 9px; padding: 9px 10px; }
+.settings-section-title { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.75); margin-bottom: 7px; }
+.settings-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 7px; }
+.settings-field:last-child { margin-bottom: 0; }
+.settings-field > span { font-size: 10px; color: rgba(255,255,255,0.55); }
+.settings-field input[type="text"],
+.settings-field input[type="password"],
+.settings-field input[type="number"] {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 7px;
+  color: rgba(255,255,255,0.92);
+  font-size: 11px;
+  padding: 5px 8px;
+  outline: none;
+}
+.settings-field input:focus { border-color: rgba(130,170,255,0.65); background: rgba(255,255,255,0.14); }
+.settings-field input::placeholder { color: rgba(255,255,255,0.4); }
+.settings-switch { flex-direction: row; align-items: center; justify-content: space-between; }
+.settings-switch > span { font-size: 11px; color: rgba(255,255,255,0.7); }
+.settings-switch input { width: auto; }
+.settings-version { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.7); margin-bottom: 5px; }
+.settings-version b { color: rgba(255,255,255,0.95); font-weight: 600; }
+.settings-update-status { font-size: 10px; color: rgba(255,255,255,0.6); margin-bottom: 7px; min-height: 13px; line-height: 1.4; }
+.settings-btns { display: flex; gap: 8px; }
+.settings-btns-bottom { margin-top: 2px; }
+.settings-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.9);
+  font-size: 11px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+.settings-btn:hover { background: rgba(255,255,255,0.18); }
+.settings-btn.primary { background: linear-gradient(135deg, rgba(120,160,255,0.55), rgba(150,120,255,0.5)); border-color: rgba(160,180,255,0.35); }
+.settings-btn.primary:hover { background: linear-gradient(135deg, rgba(130,170,255,0.65), rgba(160,130,255,0.6)); }
+.settings-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.settings-tip { font-size: 9.5px; color: rgba(255,255,255,0.45); text-align: center; }
+
 .chat-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
 .chat-title { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.92); }
 .chat-close { font-size: 13px; color: rgba(255,255,255,0.65); cursor: pointer; padding: 2px 6px; border-radius: 6px; }

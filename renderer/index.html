@@ -61,6 +61,49 @@
     <div class="chat-hint" id="chatHint"></div>
   </div>
 
+  <!-- 设置面板（磨砂玻璃） -->
+  <div id="settingsPanel" class="settings-panel liquid-glass hidden">
+    <span class="glass-blob b1"></span>
+    <span class="glass-blob b2"></span>
+    <div class="settings-head">
+      <span class="settings-title">设置</span>
+      <span id="settingsClose" class="chat-close">✕</span>
+    </div>
+    <div class="settings-body">
+      <div class="settings-section">
+        <div class="settings-section-title">API 配置</div>
+        <label class="settings-field"><span>接口地址</span><input id="setApiBase" type="text" placeholder="https://api.deepseek.com" /></label>
+        <label class="settings-field"><span>API Key</span><input id="setApiKey" type="password" placeholder="留空保持不变" /></label>
+        <label class="settings-field"><span>对话模型</span><input id="setChatModel" type="text" placeholder="deepseek-chat" /></label>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">屏幕感知（视觉理解）</div>
+        <label class="settings-field settings-switch">
+          <span>开启</span>
+          <input id="setVisionEnabled" type="checkbox" />
+        </label>
+        <label class="settings-field"><span>感知间隔（秒）</span><input id="setVisionInterval" type="number" min="10" /></label>
+        <label class="settings-field"><span>视觉模型</span><input id="setVisionModel" type="text" placeholder="留空跟随对话模型" /></label>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">版本与更新</div>
+        <div class="settings-version">
+          <span>当前版本 <b id="setCurrentVersion">--</b></span>
+          <span>最新版本 <b id="setLatestVersion">--</b></span>
+        </div>
+        <div class="settings-update-status" id="setUpdateStatus">尚未检查</div>
+        <div class="settings-btns">
+          <button id="btnCheckUpdate" class="settings-btn">检查更新</button>
+          <button id="btnApplyUpdate" class="settings-btn primary" disabled>立即更新</button>
+        </div>
+      </div>
+      <div class="settings-btns settings-btns-bottom">
+        <button id="btnSaveSettings" class="settings-btn primary">保存设置</button>
+      </div>
+      <div class="settings-tip">保存后需重启生效 · 更新将自动下载并重启，无需重新安装</div>
+    </div>
+  </div>
+
   <!-- Live2D 宠物渲染容器 -->
   <div id="pet" class="pet"></div>
 

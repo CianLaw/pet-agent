@@ -576,6 +576,215 @@ app.on('will-quit', () => {
   stopVisionLoop();
 });
 
+/* ---------------- 设置面板 & 一键自动更新 ----------------
+ * 版本号取自 package.json；更新源为 GitHub Releases。
+ * 网络双通道：先直连，失败自动走本地代理（127.0.0.1:7897，Clash 等）。 */
+const APP_VERSION = (() => {
+  try { return require('./package.json').version || '1.0.0'; }
+  catch (_) { return '1.0.0'; }
+})();
+const GITHUB_REPO = 'CianLaw/pet-agent';
+const PROXY_HOST = '127.0.0.1';
+const PROXY_PORT = 7897;
+const CONFIG_FILE = path.join(__dirname, 'config.json');
+
+function parseVersion(v) {
+  return String(v || '').replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
+}
+function isNewer(localArr, remoteArr) {
+  const len = Math.max(localArr.length, remoteArr.length);
+  for (let i = 0; i < len; i++) {
+    const a = localArr[i] || 0;
+    const b = remoteArr[i] || 0;
+    if (a !== b) return b > a;
+  }
+  return false;
+}
+
+// JSON 请求：直连 → 失败走本地代理（GET）
+function fetchJson(url, timeoutMs) {
+  return new Promise((resolve) => {
+    const tryProxy = () => {
+      const http = require('http');
+      const req = http.request({
+        host: PROXY_HOST, port: PROXY_PORT, path: url, method: 'GET',
+        headers: { 'User-Agent': 'pet-agent-updater', Accept: 'application/vnd.github+json', Host: new URL(url).host }
+      }, (res) => {
+        let data = '';
+        res.on('data', (c) => (data += c));
+        res.on('end', () => {
+          try { resolve({ ok: true, data: JSON.parse(data) }); }
+          catch (_) { resolve({ ok: false, error: 'parse' }); }
+        });
+      });
+      req.on('error', (e) => resolve({ ok: false, error: e.message }));
+      req.setTimeout(15000, () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
+    };
+    const https = require('https');
+    const req = https.get(url, {
+      headers: { 'User-Agent': 'pet-agent-updater', Accept: 'application/vnd.github+json' }
+    }, (res) => {
+      let data = '';
+      res.on('data', (c) => (data += c));
+      res.on('end', () => {
+        try { resolve({ ok: true, data: JSON.parse(data) }); }
+        catch (_) { tryProxy(); }
+      });
+    });
+    req.on('error', () => tryProxy());
+    req.setTimeout(timeoutMs || 20000, () => { req.destroy(); tryProxy(); });
+  });
+}
+
+// 下载文件到 dest：直连 → 失败走本地代理
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const tryProxy = () => {
+      const http = require('http');
+      const req = http.request({
+        host: PROXY_HOST, port: PROXY_PORT, path: url, method: 'GET',
+        headers: { 'User-Agent': 'pet-agent-updater', Host: new URL(url).host }
+      }, (res) => {
+        if (res.statusCode >= 400) { res.resume(); return reject(new Error('http-' + res.statusCode)); }
+        const f = fs.createWriteStream(dest);
+        res.pipe(f);
+        f.on('finish', () => f.close(() => resolve()));
+        f.on('error', (e) => { fs.rmSync(dest, { force: true }); reject(e); });
+      });
+      req.on('error', (e) => { fs.rmSync(dest, { force: true }); reject(e); });
+      req.setTimeout(15000, () => { req.destroy(); });
+    };
+    const https = require('https');
+    const req = https.get(url, { headers: { 'User-Agent': 'pet-agent-updater' } }, (res) => {
+      if (res.statusCode >= 400) { res.resume(); return tryProxy(); }
+      const f = fs.createWriteStream(dest);
+      res.pipe(f);
+      f.on('finish', () => f.close(() => resolve()));
+      f.on('error', (e) => { fs.rmSync(dest, { force: true }); tryProxy(); });
+    });
+    req.on('error', () => { fs.rmSync(dest, { force: true }); tryProxy(); });
+    req.setTimeout(15000, () => { req.destroy(); });
+  });
+}
+
+async function fetchLatestRelease() {
+  const r = await fetchJson(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+  if (!r.ok || !r.data || !r.data.tag_name) return null;
+  const d = r.data;
+  return {
+    tag: d.tag_name,
+    name: d.name || d.tag_name,
+    body: String(d.body || '').slice(0, 300),
+    url: d.html_url || '',
+    tarballUrl: d.tarball_url || ''
+  };
+}
+
+ipcMain.handle('get-settings', () => ({
+  ok: true,
+  version: APP_VERSION,
+  config: {
+    apiBase: config.apiBase || '',
+    apiKeyMasked: (config.apiKey || '').replace(/^(.{4}).*$/, '$1****'),
+    apiKeySet: !!(config.apiKey || process.env.DEEPSEEK_API_KEY),
+    chatModel: config.chatModel || 'deepseek-chat',
+    vision: Object.assign({ enabled: true, intervalSec: 60, model: '', prompt: '' }, config.vision || {})
+  }
+}));
+
+const SETTINGS_WHITELIST = ['apiBase', 'apiKey', 'chatModel'];
+ipcMain.handle('save-settings', (e, patch) => {
+  try {
+    const p = (patch && typeof patch === 'object') ? patch : {};
+    const next = Object.assign({}, config);
+    for (const k of SETTINGS_WHITELIST) {
+      if (typeof p[k] === 'string' && p[k].trim() !== '') next[k] = p[k].trim();
+    }
+    if (typeof p.apiKey === 'string' && p.apiKey.trim() !== '' && !p.apiKey.includes('****')) {
+      next.apiKey = p.apiKey.trim();
+    }
+    if (p.vision && typeof p.vision === 'object') {
+      const v = p.vision;
+      next.vision = Object.assign({}, config.vision || {}, {
+        enabled: !!v.enabled,
+        intervalSec: Math.max(10, parseInt(v.intervalSec, 10) || 60),
+        model: typeof v.model === 'string' ? v.model.trim() : '',
+        prompt: typeof v.prompt === 'string' ? v.prompt.trim() : ''
+      });
+      // 视觉间隔/开关变化时重启感知循环
+      stopVisionLoop();
+      startVisionLoop();
+    }
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(next, null, 2));
+    Object.assign(config, next);
+    return { ok: true, needRestart: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('check-update', async () => {
+  const rel = await fetchLatestRelease();
+  if (!rel) return { ok: false, error: '无法连接 GitHub（直连与代理均失败）' };
+  const hasUpdate = isNewer(parseVersion(APP_VERSION), parseVersion(rel.tag));
+  return {
+    ok: true,
+    current: APP_VERSION,
+    latest: rel.tag,
+    hasUpdate,
+    name: rel.name,
+    body: rel.body,
+    url: rel.url,
+    tarballUrl: rel.tarballUrl
+  };
+});
+
+ipcMain.handle('apply-update', async () => {
+  try {
+    const rel = await fetchLatestRelease();
+    if (!rel || !rel.tarballUrl) return { ok: false, error: '未找到更新包' };
+    const appDir = __dirname;
+    if (!fs.existsSync(path.join(appDir, 'package.json'))) return { ok: false, error: '应用目录异常' };
+    // 写权限检查：尝试在应用目录创建临时文件
+    try {
+      const probe = path.join(appDir, '.update-probe');
+      fs.writeFileSync(probe, '1');
+      fs.rmSync(probe, { force: true });
+    } catch (_) {
+      return { ok: false, error: '应用目录无写入权限，请把桌宠放在可写位置（如“应用程序”目录或源码目录）后重试' };
+    }
+    const tmpTar = path.join(os.tmpdir(), `pet-update-${Date.now()}.tar.gz`);
+    await downloadFile(rel.tarballUrl, tmpTar);
+    const tmpDir = path.join(os.tmpdir(), `pet-update-src-${Date.now()}`);
+    fs.mkdirSync(tmpDir, { recursive: true });
+    await new Promise((resolve, reject) => {
+      const cp = require('child_process').execFile('tar', ['-xzf', tmpTar, '-C', tmpDir], { timeout: 120000 }, (err) => err ? reject(new Error('解压失败')) : resolve());
+    });
+    const root = fs.readdirSync(tmpDir).find((n) => {
+      try { return fs.statSync(path.join(tmpDir, n)).isDirectory() && fs.existsSync(path.join(tmpDir, n, 'package.json')); }
+      catch (_) { return false; }
+    });
+    if (!root) return { ok: false, error: '更新包内容异常' };
+    const src = path.join(tmpDir, root);
+    // 覆盖应用文件；保留本地配置与依赖、.git
+    const KEEP = new Set(['config.json', 'node_modules', '.git']);
+    for (const n of fs.readdirSync(src)) {
+      if (KEEP.has(n)) continue;
+      const from = path.join(src, n);
+      const to = path.join(appDir, n);
+      fs.rmSync(to, { recursive: true, force: true });
+      fs.cpSync(from, to, { recursive: true });
+    }
+    fs.rmSync(tmpTar, { force: true });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    // 自动重启（渲染层会先提示）
+    setTimeout(() => { app.relaunch(); app.quit(); }, 1200);
+    return { ok: true, updatedTo: rel.tag };
+  } catch (err) {
+    return { ok: false, error: err.message || '更新失败' };
+  }
+});
+
 // ---- IPC ----
 ipcMain.handle('get-state', () => ({
   stats: stats.snapshot(),
@@ -766,6 +975,12 @@ ipcMain.on('show-context-menu', (e) => {
       }
     },
     { type: 'separator' },
+    {
+      label: '设置…',
+      click: () => {
+        win.webContents.send('pet-settings-open');
+      }
+    },
     {
       label: '刷新余额',
       click: async () => {

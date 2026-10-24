@@ -1,0 +1,23 @@
+{
+  "name": "pet-agent",
+  "version": "1.0.0",
+  "description": "玻璃宠物悬浮窗：本地代理记账 + DeepSeek 用量统计 + 系统监测（电池/网络）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "active-win": "^8.2.1",
+    "live2d-widget": "^3.1.4",
+    "live2d-widget-model-shizuku": "^1.0.5",
+    "live2dcubismcore": "^1.0.2",
+    "ws": "^8.22.0"
+  }
+}

@@ -1,0 +1,461 @@
+/* 豆包桌宠悬浮窗样式 —— 磨砂玻璃质感（简洁 · 小圆角）
+ * 用户要求：不采用大圆角，简洁美观；采用磨砂玻璃质感
+ * 透明窗口内 backdrop-filter 在部分系统失效，用多层渐变 + 噪点 + 高光模拟，并叠加真 blur 兜底 */
+
+* { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+body { position: relative; }
+
+/* ================= 磨砂玻璃卡片 ================= */
+.liquid-glass {
+  position: relative;
+  border-radius: 8px;               /* 小圆角，简洁 */
+  /* 半透明磨砂底：微透桌面 + 冷蓝灰玻璃 */
+  background:
+    radial-gradient(130% 95% at 12% 0%, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 52%),
+    linear-gradient(180deg, rgba(58,70,116,0.58) 0%, rgba(34,42,76,0.62) 100%);
+  /* 真模糊（支持的平台生效）+ 纯 CSS 模拟兜底 */
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-top-color: rgba(255,255,255,0.32);
+  box-shadow:
+    0 10px 30px rgba(8,10,28,0.4),
+    0 2px 6px rgba(8,10,28,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.14);
+  color: #eef2ff;
+  overflow: hidden;
+}
+
+/* 磨砂噪点颗粒（feTurbulence 生成细微雪花，增强玻璃质感） */
+.liquid-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.055'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .8;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 折射光斑：弱化、收敛（简洁化） */
+.liquid-glass .glass-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(10px);
+  opacity: .22;
+}
+
+/* 顶部细高光弧（简洁） */
+.liquid-glass::before {
+  content: "";
+  position: absolute;
+  top: -55%;
+  left: -8%;
+  width: 116%;
+  height: 70%;
+  background: radial-gradient(ellipse at 50% 0%, rgba(180,200,255,0.22) 0%, rgba(180,200,255,0) 62%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 豆包桌宠悬浮窗样式 —— 气泡式 UI（用户偏好）
+ * 层级优先级：宠物 < 爱心特效 < 用量面板 < 台词气泡 < 聊天窗(最高) */
+
+/* ================= 主气泡（数据面板，左上） ================= */
+.bubble {
+  position: absolute;
+  left: 6px;
+  top: 10px;
+  width: 224px;
+  padding: 13px 14px 12px;
+  transform-origin: 70% 100%;
+  animation: bubblePop .32s cubic-bezier(.34,1.56,.64,1);
+  z-index: 10;
+}
+
+/* 面板内折射光斑（冷色光点） */
+.bubble .glass-blob.b1 { width: 90px; height: 90px; top: -30px; left: -24px; background: rgba(110,140,255,0.5); }
+.bubble .glass-blob.b2 { width: 60px; height: 60px; bottom: -18px; right: -10px; background: rgba(110,160,255,0.35); }
+
+/* 尾巴小三角（磨砂玻璃同色）指向宠物 */
+.bubble .glass-tail {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  right: 62px;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(160deg, rgba(58,70,116,0.9) 0%, rgba(34,42,76,0.92) 100%);
+  border-right: 1px solid rgba(255,255,255,0.18);
+  border-bottom: 1px solid rgba(255,255,255,0.18);
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+.bubble.hidden, .mini-bubble.hidden { display: none; }
+
+@keyframes bubblePop {
+  0% { transform: scale(.55); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.bubble-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+.bubble-title { font-size: 12px; color: rgba(255,255,255,0.92); font-weight: 600; letter-spacing: .5px; text-shadow: 0 1px 3px rgba(20,30,80,0.5); }
+.balance { font-size: 22px; font-weight: 700; color: #7cf0c0; letter-spacing: .5px; text-shadow: 0 0 12px rgba(124,240,192,0.45), 0 1px 2px rgba(0,0,0,0.3); }
+
+.bubble-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  line-height: 19px;
+}
+.bubble-row .label { color: rgba(255,255,255,0.68); text-shadow: 0 1px 2px rgba(20,30,80,0.35); }
+.bubble-row .value { color: #ffffff; font-variant-numeric: tabular-nums; font-weight: 500; text-shadow: 0 1px 3px rgba(20,30,80,0.4); }
+.bubble-row .value.empty { color: rgba(255,255,255,0.45); }
+/* 豆包任务状态 */
+.bubble-row .value.doubao-task { font-weight: 600; }
+.doubao-task.dt-progress { color: #ffd98a; animation: dtPulse 1.6s ease-in-out infinite; }
+.doubao-task.dt-done { color: #7cf0c0; }
+.doubao-task.dt-fail { color: #ff8f8f; }
+@keyframes dtPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+.bubble-time { margin-top: 5px; font-size: 10px; color: rgba(255,255,255,0.5); text-align: right; }
+
+/* ================= 好感度与状态条 ================= */
+.pet-status {
+  margin-top: 6px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255,255,255,0.14);
+}
+.status-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.status-stage { font-size: 11px; color: #ffd9a0; font-weight: 600; text-shadow: 0 1px 3px rgba(20,30,80,0.5); }
+.status-aff { font-size: 10px; color: rgba(255,255,255,0.7); }
+.status-bar-row { display: flex; align-items: center; gap: 6px; font-size: 10px; line-height: 15px; }
+.status-name { width: 24px; color: rgba(255,255,255,0.6); }
+.status-bar { flex: 1; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.16); overflow: hidden; }
+.status-bar i { display: block; height: 100%; border-radius: 3px; transition: width .6s ease; }
+#barHunger { background: linear-gradient(90deg, #f6a96b, #ffc98a); }
+#barMood { background: linear-gradient(90deg, #7ad0ff, #a8e0ff); }
+#barEnergy { background: linear-gradient(90deg, #8ee8b0, #b6f2c8); }
+
+/* ================= AI 聊天小窗（气泡式，最高层级） ================= */
+.chat-panel {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  width: 248px;
+  height: 226px;
+  display: flex;
+  flex-direction: column;
+  padding: 11px 13px 13px;
+  border-radius: 10px;   /* 小圆角 */
+  z-index: 100; /* 最高优先级，永不被其他弹窗/宠物遮挡 */
+  overflow: visible; /* 让尾巴伸出面板外 */
+}
+.chat-panel.hidden { display: none; }
+/* 聊天窗尾巴：指向宠物（右下角）的气泡尾巴 */
+.chat-panel .glass-tail {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  right: 46px;
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(160deg, rgba(58,70,116,0.9) 0%, rgba(34,42,76,0.92) 100%);
+  border-right: 1px solid rgba(255,255,255,0.18);
+  border-bottom: 1px solid rgba(255,255,255,0.18);
+  border-radius: 2px;
+  transform: rotate(45deg);
+  z-index: -1;
+}
+.chat-panel .glass-blob.b1 { width: 50px; height: 50px; top: -18px; left: -12px; background: rgba(110,140,255,0.5); }
+.chat-panel .glass-blob.b2 { width: 34px; height: 34px; bottom: -12px; right: -8px; background: rgba(110,160,255,0.35); }
+
+.chat-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+.chat-title { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.92); }
+.chat-close { font-size: 13px; color: rgba(255,255,255,0.65); cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.chat-close:hover { background: rgba(255,255,255,0.15); }
+.chat-log { flex: 1; overflow-y: auto; font-size: 11px; line-height: 1.45; margin-bottom: 6px; padding-right: 2px; }
+.chat-log::-webkit-scrollbar { width: 4px; }
+.chat-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 2px; }
+/* 聊天气泡：小圆角对话气泡 */
+.chat-msg {
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  max-width: 92%;
+  word-break: break-word;
+  line-height: 1.5;
+}
+.chat-msg.user {
+  background: linear-gradient(135deg, rgba(98,130,255,0.6), rgba(88,110,235,0.5));
+  border: 1px solid rgba(130,160,255,0.45);
+  border-bottom-right-radius: 3px;
+  margin-left: auto;
+}
+.chat-msg.pet {
+  background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.1));
+  border: 1px solid rgba(255,255,255,0.18);
+  border-bottom-left-radius: 3px;
+  color: #f2f5ff;
+}
+.chat-input-row input {
+  width: 100%;
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.14);
+  color: #fff;
+  font-size: 11px;
+  outline: none;
+}
+.chat-input-row input::placeholder { color: rgba(255,255,255,0.45); }
+.chat-hint { font-size: 9px; color: rgba(255,255,255,0.45); margin-top: 4px; }
+
+/* ================= 宠物头顶台词气泡（液态玻璃） ================= */
+.mini-bubble {
+  position: absolute;
+  right: 14px;
+  top: 24px;          /* 悬浮在模型头顶正上方 */
+  max-width: 182px;
+  padding: 8px 13px;
+  font-size: 12px;
+  font-weight: 500;
+  animation: miniPop .34s cubic-bezier(.34,1.56,.64,1);
+  z-index: 50; /* 台词气泡：位于宠物之上、聊天窗之下 */
+}
+
+.mini-bubble .glass-blob.b1 { width: 44px; height: 44px; top: -16px; left: -12px; background: rgba(110,140,255,0.5); }
+.mini-bubble .glass-blob.b2 { width: 30px; height: 30px; bottom: -10px; right: -8px; background: rgba(110,160,255,0.35); }
+
+.mini-bubble .glass-tail {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  right: 46px;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(160deg, rgba(58,70,116,0.9) 0%, rgba(34,42,76,0.92) 100%);
+  border-right: 1px solid rgba(255,255,255,0.18);
+  border-bottom: 1px solid rgba(255,255,255,0.18);
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+/* 用量提醒气泡：强调色（同磨砂玻璃） */
+.mini-bubble.usage {
+  max-width: 206px;
+  font-weight: 600;
+  background:
+    radial-gradient(130% 95% at 12% 0%, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 52%),
+    linear-gradient(180deg, rgba(58,70,116,0.7) 0%, rgba(34,42,76,0.75) 100%);
+}
+
+@keyframes miniPop {
+  0% { transform: translateY(12px) scale(.6); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ================= Live2D 宠物 ================= */
+#pet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 200px;
+  height: 440px;
+  cursor: grab;
+  z-index: 4;
+  pointer-events: auto;
+}
+
+#pet:active { cursor: grabbing; }
+
+/* 点击弹跳 */
+#pet.bounce {
+  animation: petBounce .45s ease;
+}
+
+@keyframes petBounce {
+  0%   { transform: translateY(0) scale(1); }
+  30%  { transform: translateY(-14px) scale(1.04, .96); }
+  55%  { transform: translateY(0) scale(.97, 1.03); }
+  75%  { transform: translateY(-5px) scale(1.01, .99); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* live2d-widget 创建的容器：固定在窗口右下角 */
+#live2d-widget {
+  position: fixed !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  top: auto !important;
+  z-index: 4;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+}
+
+#live2d-widget canvas { pointer-events: auto; }
+
+/* 散步时隐藏 Live2D 场景（class 方案，覆盖 !important） */
+#live2d-widget.walk-hidden,
+#live2d-widget.walk-hidden canvas {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ================= 爱心特效 ================= */
+#fx { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+
+.heart {
+  position: absolute;
+  font-size: 18px;
+  color: #ff7aa8;
+  animation: heartFly 1.2s ease-out forwards;
+}
+
+@keyframes heartFly {
+  0%   { transform: translate(0, 0) scale(.5); opacity: 1; }
+  100% { transform: translate(var(--dx, 40px), var(--dy, -90px)) scale(1.3); opacity: 0; }
+}
+
+/* ================= 散步层：宠物离开桌子散步（窗口/桌子不移动） ================= */
+.walk-layer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 440px;
+  pointer-events: none;   /* 透明区域穿透 */
+  z-index: 6;
+}
+.walk-layer.hidden { display: none; }
+
+.walk-sprite {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 150px;
+  height: 150px;
+  background: url('../assets/pet.png') no-repeat center / contain;
+  pointer-events: auto;   /* 散步精灵可交互（点击/右键） */
+  cursor: grab;
+  /* 左右往返散步 + 轻微上下浮动（步伐感） */
+  animation: petWalk 9s linear infinite;
+}
+
+@keyframes petWalk {
+  0%   { transform: translateX(-30px) translateY(0) scaleX(1); }
+  10%  { transform: translateX(12%) translateY(-6px) scaleX(1); }
+  20%  { transform: translateX(24%) translateY(0) scaleX(1); }
+  30%  { transform: translateX(36%) translateY(-6px) scaleX(1); }
+  40%  { transform: translateX(48%) translateY(0) scaleX(1); }
+  50%  { transform: translateX(60%) translateY(-6px) scaleX(1); }
+  55%  { transform: translateX(64%) translateY(0) scaleX(1); }
+  57%  { transform: translateX(64%) translateY(-8px) scaleX(1); }  /* 碰边：小跳一下 */
+  60%  { transform: translateX(62%) translateY(0) scaleX(-1); }    /* 转身 */
+  70%  { transform: translateX(48%) translateY(-6px) scaleX(-1); }
+  80%  { transform: translateX(36%) translateY(0) scaleX(-1); }
+  90%  { transform: translateX(24%) translateY(-6px) scaleX(-1); }
+  97%  { transform: translateX(-28px) translateY(-8px) scaleX(-1); }
+  100% { transform: translateX(-30px) translateY(0) scaleX(-1); }
+}
+
+/* ================= 喂食 / 摸头专属特效 ================= */
+.food-fx {
+  position: absolute;
+  font-size: 34px;
+  animation: foodNom 1.1s ease-out forwards;
+  z-index: 7;
+  pointer-events: none;
+}
+@keyframes foodNom {
+  0%   { transform: scale(.4) translateY(10px) rotate(-12deg); opacity: 0; }
+  25%  { transform: scale(1.15) translateY(0) rotate(6deg); opacity: 1; }
+  60%  { transform: scale(.9) translateY(-14px) rotate(-4deg); opacity: 1; }
+  100% { transform: scale(0) translateY(-30px) rotate(10deg); opacity: 0; }
+}
+.head-heart {
+  position: absolute;
+  left: 110px;
+  top: 130px;
+  font-size: 30px;
+  animation: headHeart 1s ease-out forwards;
+  z-index: 7;
+  pointer-events: none;
+}
+@keyframes headHeart {
+  0%   { transform: translateY(18px) scale(.4); opacity: 0; }
+  30%  { transform: translateY(0) scale(1.25); opacity: 1; }
+  100% { transform: translateY(-34px) scale(1) rotate(8deg); opacity: 0; }
+}
+/* 吃食物：宠物轻微左右摆 */
+#pet.chew { animation: chewShake .5s ease-in-out; }
+@keyframes chewShake {
+  0%,100% { transform: rotate(0); }
+  25% { transform: rotate(-2deg) translateX(-3px); }
+  75% { transform: rotate(2deg) translateX(3px); }
+}
+
+/* ================= 睡觉 / 发呆状态 ================= */
+#sleepZzz {
+  position: absolute;
+  right: 30px;
+  top: 55px;
+  font-size: 18px;
+  color: rgba(255,255,255,.85);
+  text-shadow: 0 1px 4px rgba(20,30,80,.5);
+  pointer-events: none;
+  z-index: 8;
+  animation: zzzFloat 2.4s ease-in-out infinite;
+}
+@keyframes zzzFloat {
+  0%   { transform: translateY(0) scale(.8); opacity: .3; }
+  50%  { transform: translateY(-14px) scale(1.15); opacity: 1; }
+  100% { transform: translateY(-28px) scale(.85); opacity: .2; }
+}
+#sleepOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 62% 45%, rgba(18,26,58,.12), rgba(10,14,34,.4));
+  pointer-events: none;
+  z-index: 4;
+}
+#sleepOverlay.hidden { display: none; }
+
+/* ================= 拖文件给它吃 ================= */
+.drop-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(36,48,99,0.85), rgba(24,34,74,0.9));
+  border: 1px solid rgba(124,240,192,.35);
+  color: #b8ffe2;
+  font-size: 11px;
+  letter-spacing: .3px;
+  box-shadow: 0 4px 18px rgba(10,16,40,.5);
+  pointer-events: none;
+  z-index: 9;
+  white-space: nowrap;
+  animation: dropPulse 1.2s ease-in-out infinite;
+}
+.drop-hint.hidden { display: none; }
+@keyframes dropPulse {
+  0%,100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.04); }
+}

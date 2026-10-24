@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; media-src 'self' data:; connect-src 'self'" />
+  <title>豆包桌宠</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 主气泡：余额/今日用量/实时速率（纯色质感） -->
+  <div id="bubble" class="bubble liquid-glass hidden">
+    <span class="glass-blob b1"></span>
+    <span class="glass-blob b2"></span>
+    <span class="glass-tail"></span>
+    <div class="bubble-head">
+      <span class="bubble-title">豆包 · 用量</span>
+      <span id="balance" class="balance">--</span>
+    </div>
+    <div class="bubble-row"><span class="label">今日已用</span><span id="todayCost" class="value">--</span></div>
+    <div class="bubble-row"><span class="label">本次消耗</span><span id="lastTokens" class="value">--</span></div>
+    <div class="bubble-row"><span class="label">实时速率</span><span id="speed" class="value">--</span></div>
+    <div class="bubble-row"><span class="label">缓存命中</span><span id="cacheHit" class="value">--</span></div>
+    <div class="bubble-row"><span class="label">当前模型</span><span id="model" class="value">--</span></div>
+    <div class="bubble-row"><span class="label">电池</span><span id="battery" class="value">--</span></div>
+    <div class="bubble-row"><span class="label">网络</span><span id="network" class="value">--</span></div>
+    <div class="bubble-row"><span class="label">内存 / CPU</span><span id="memcpu" class="value">--</span></div>
+    <div class="bubble-row"><span class="label">豆包任务</span><span id="doubaoTask" class="value doubao-task">--</span></div>
+    <!-- 好感度与状态 -->
+    <div class="pet-status">
+      <div class="status-head">
+        <span class="status-stage" id="petStage">生疏</span>
+        <span class="status-aff" id="petAffection">好感 0</span>
+      </div>
+      <div class="status-bar-row"><span class="status-name">饱食</span><div class="status-bar"><i id="barHunger" style="width:0%"></i></div></div>
+      <div class="status-bar-row"><span class="status-name">心情</span><div class="status-bar"><i id="barMood" style="width:0%"></i></div></div>
+      <div class="status-bar-row"><span class="status-name">精力</span><div class="status-bar"><i id="barEnergy" style="width:0%"></i></div></div>
+    </div>
+    <div class="bubble-time" id="time">--</div>
+  </div>
+
+  <!-- 宠物头顶台词气泡（纯色质感） -->
+  <div id="miniBubble" class="mini-bubble liquid-glass hidden">
+    <span class="glass-blob b1"></span>
+    <span class="glass-blob b2"></span>
+    <span class="glass-tail"></span>
+  </div>
+
+  <!-- AI 聊天小窗（气泡式，最高优先级） -->
+  <div id="chatPanel" class="chat-panel liquid-glass hidden">
+    <span class="glass-blob b1"></span>
+    <span class="glass-blob b2"></span>
+    <span class="glass-tail"></span>
+    <div class="chat-head">
+      <span class="chat-title">和豆包桌宠聊天</span>
+      <span id="chatClose" class="chat-close">✕</span>
+    </div>
+    <div id="chatLog" class="chat-log"></div>
+    <div class="chat-input-row">
+      <input id="chatInput" type="text" placeholder="说点什么…（回车发送）" />
+    </div>
+    <div class="chat-hint" id="chatHint"></div>
+  </div>
+
+  <!-- Live2D 宠物渲染容器 -->
+  <div id="pet" class="pet"></div>
+
+  <!-- 散步精灵层：宠物离开桌子散步（窗口/桌子不移动） -->
+  <div id="walkLayer" class="walk-layer hidden">
+    <div id="walkSprite" class="walk-sprite"></div>
+  </div>
+
+  <!-- 睡觉：Zzz + 变暗遮罩 -->
+  <div id="sleepOverlay" class="hidden"></div>
+  <div id="sleepZzz" class="hidden">💤</div>
+
+  <!-- 拖文件给它吃：拖拽悬停提示 -->
+  <div id="dropHint" class="drop-hint hidden">把文件拖给我吃掉吧！(移到废纸篓)</div>
+
+  <!-- 爱心特效层 -->
+  <div id="fx"></div>
+
+  <!-- Live2D 引擎（自包含，含运行时与 WebGL） -->
+  <script src="vendor/L2Dwidget.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -478,6 +478,13 @@ async function init() {
 
   monitor = new SystemMonitor(config.system || {});
   monitor.start();
+  // macOS 未授予辅助功能权限：前台应用监测已自动禁用（避免反复弹系统授权窗）。
+  // 仅提示一次，引导用户按需授权；不想用也完全不影响其他功能。
+  if (monitor.frontAppDisabled) {
+    setTimeout(() => {
+      broadcast('pet-say', '主人～我在「系统设置→隐私与安全→辅助功能」里被允许后，才能看到你在用哪个应用；不需要也没关系，其他功能一切正常');
+    }, 6000);
+  }
   setInterval(() => pushFullState(), 2000);
 
   // 状态衰减：每 5 分钟 tick 一次

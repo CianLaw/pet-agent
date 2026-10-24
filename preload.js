@@ -28,6 +28,11 @@ contextBridge.exposeInMainWorld('petAgent', {
   saveSettings: (patch) => ipcRenderer.invoke('save-settings', patch),
   checkUpdate: () => ipcRenderer.invoke('check-update'),
   applyUpdate: () => ipcRenderer.invoke('apply-update'),
+  getSkinList: () => ipcRenderer.invoke('get-skin-list'),
+  setSkin: (id) => ipcRenderer.invoke('set-skin', id),
+  getModules: () => ipcRenderer.invoke('get-modules'),
+  setModules: (patch) => ipcRenderer.invoke('set-modules', patch),
+  openSkinFolder: () => ipcRenderer.invoke('open-skin-folder'),
   onUsageRemind: (fn) => {
     const listener = (_e, usage) => fn(usage);
     ipcRenderer.on('usage-remind', listener);

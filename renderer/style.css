@@ -344,6 +344,19 @@ body { position: relative; }
   pointer-events: auto;
 }
 
+/* 贴图皮肤层：铺在窗口右下区域（与 Live2D 同位置），默认隐藏 */
+#skinImage {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 200px;
+  height: 440px;
+  object-fit: contain;
+  display: none;
+  z-index: 5;
+  pointer-events: none;
+}
+
 #pet:active { cursor: grabbing; }
 
 /* 点击弹跳 */

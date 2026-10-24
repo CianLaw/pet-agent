@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: file:; style-src 'self' 'unsafe-inline'; script-src 'self'; media-src 'self' data:" />
+  <title>豆包桌宠 · 主界面</title>
+  <link rel="stylesheet" href="main-window.css" />
+</head>
+<body>
+  <!-- 磨砂玻璃背景光斑 -->
+  <div class="mw-blob mw-b1"></div>
+  <div class="mw-blob mw-b2"></div>
+
+  <div class="mw-shell">
+    <!-- 左侧导航 -->
+    <nav class="mw-nav">
+      <div class="mw-logo">
+        <span class="mw-logo-dot"></span>
+        豆包桌宠
+      </div>
+      <div class="mw-nav-item active" data-page="home">🏠 首页</div>
+      <div class="mw-nav-item" data-page="skin">🎨 皮肤</div>
+      <div class="mw-nav-item" data-page="module">🧩 模块</div>
+      <div class="mw-nav-item" data-page="setting">⚙️ 设置</div>
+      <div class="mw-nav-version" id="mwVersion">v--</div>
+    </nav>
+
+    <!-- 右侧内容 -->
+    <main class="mw-main">
+      <!-- 首页 -->
+      <section class="mw-page" id="page-home">
+        <h2 class="mw-title">我的桌宠</h2>
+        <div class="mw-home-card">
+          <div class="mw-home-pet">
+            <div class="mw-avatar" id="mwAvatar"><div class="mw-avatar-fallback">🐾</div></div>
+            <div class="mw-home-info">
+              <div class="mw-stage" id="mwStage">--</div>
+              <div class="mw-aff" id="mwAffection">好感 --</div>
+            </div>
+          </div>
+          <div class="mw-bars">
+            <div class="mw-bar-row"><span>饱食</span><div class="mw-bar"><i id="mwHunger"></i></div></div>
+            <div class="mw-bar-row"><span>心情</span><div class="mw-bar"><i id="mwMood"></i></div></div>
+            <div class="mw-bar-row"><span>精力</span><div class="mw-bar"><i id="mwEnergy"></i></div></div>
+          </div>
+          <div class="mw-home-hint">悬浮窗桌宠常驻桌面，右键可打开本界面、喂食、聊天等</div>
+        </div>
+      </section>
+
+      <!-- 皮肤 -->
+      <section class="mw-page hidden" id="page-skin">
+        <h2 class="mw-title">皮肤 <span class="mw-sub">放新皮肤进 skin 文件夹即可显示</span></h2>
+        <div class="mw-skin-grid" id="mwSkinGrid"></div>
+        <div class="mw-skin-actions">
+          <button class="mw-btn" id="btnOpenSkinFolder">打开皮肤文件夹</button>
+          <button class="mw-btn" id="btnRefreshSkin">刷新列表</button>
+        </div>
+      </section>
+
+      <!-- 模块 -->
+      <section class="mw-page hidden" id="page-module">
+        <h2 class="mw-title">模块开关 <span class="mw-sub">控制桌宠的各个能力</span></h2>
+        <div class="mw-module-list" id="mwModuleList"></div>
+        <div class="mw-module-tip">部分模块保存后需重启桌宠生效</div>
+      </section>
+
+      <!-- 设置 -->
+      <section class="mw-page hidden" id="page-setting">
+        <h2 class="mw-title">设置</h2>
+        <div class="mw-card">
+          <div class="mw-section-title">API 配置</div>
+          <label class="mw-field"><span>接口地址</span><input id="mwApiBase" type="text" placeholder="https://api.deepseek.com" /></label>
+          <label class="mw-field"><span>API Key</span><input id="mwApiKey" type="password" placeholder="留空保持不变" /></label>
+          <label class="mw-field"><span>对话模型</span><input id="mwChatModel" type="text" placeholder="deepseek-chat" /></label>
+          <div class="mw-row-right"><button class="mw-btn primary" id="btnSaveSettings">保存设置</button></div>
+        </div>
+        <div class="mw-card">
+          <div class="mw-section-title">版本与更新</div>
+          <div class="mw-version-line">
+            <span>当前 <b id="mwCurVer">--</b></span>
+            <span>最新 <b id="mwLatVer">--</b></span>
+          </div>
+          <div class="mw-update-status" id="mwUpdateStatus">点击「检查更新」获取最新版本</div>
+          <div class="mw-row-right">
+            <button class="mw-btn" id="btnCheckUpdate">检查更新</button>
+            <button class="mw-btn primary" id="btnApplyUpdate" disabled>立即更新</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="main-window.js"></script>
+</body>
+</html>

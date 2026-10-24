@@ -683,8 +683,29 @@
   });
 
   /* ---------- 订阅状态 ---------- */
-  window.petAgent.onState(render);
-  window.petAgent.getState().then(render);
+  /* 皮肤：贴图皮肤时隐藏 Live2D、显示贴图层；Live2D 皮肤时反之 */
+  function applySkin(skin) {
+    const img = $('skinImage');
+    const l2d = document.getElementById('live2d-widget');
+    if (skin && skin.type === 'image' && skin.file) {
+      img.src = '../' + skin.file;
+      img.style.display = 'block';
+      if (l2d) l2d.style.display = 'none';
+      walkSprite.style.backgroundImage = `url('../${skin.file}')`;
+    } else {
+      img.style.display = 'none';
+      if (l2d) l2d.style.display = '';
+      walkSprite.style.backgroundImage = '';
+    }
+  }
+  window.petAgent.onState((s) => {
+    render(s);
+    if (s && s.skin) applySkin(s.skin);
+  });
+  window.petAgent.getState().then((s) => {
+    render(s);
+    applySkin(s && s.skin);
+  });
 
   window.petAgent.onPetSay((text) => showMini(text));
 

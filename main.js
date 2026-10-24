@@ -80,6 +80,11 @@ function loadConfig() {
   }
 }
 
+/* 模块默认开关 + 皮肤默认值 */
+const DEFAULT_MODULES = { vision: true, frontApp: true, weather: true, monitor: true, greeting: true };
+if (!config.modules) config.modules = {};
+if (!config.skin) config.skin = { type: 'live2d' };
+
 function broadcast(channel, payload) {
   if (win && !win.isDestroyed()) {
     win.webContents.send(channel, payload);
@@ -476,7 +481,7 @@ async function init() {
   stats.onUpdate(() => pushFullState());
   pet.onUpdate(() => pushFullState());
 
-  monitor = new SystemMonitor(config.system || {});
+  monitor = new SystemMonitor(Object.assign({}, config.system || {}, { modules: config.modules || {} }));
   monitor.start();
   // macOS 未授予辅助功能权限：前台应用监测已自动禁用（避免反复弹系统授权窗）。
   // 仅提示一次，引导用户按需授权；不想用也完全不影响其他功能。
@@ -491,11 +496,12 @@ async function init() {
   setInterval(() => pet.tick(5 * 60 * 1000), 5 * 60 * 1000);
 
   // 早上首次打招呼（每天一次）
+  const greetingOn = () => config.modules.greeting !== false;
   const greetDay = () => {
     const today = new Date().toDateString();
     if (pet.data.lastGreetDay !== today) {
       pet.data.lastGreetDay = today;
-      setTimeout(() => broadcast('pet-say', pet.greeting()), 3000);
+      if (greetingOn()) setTimeout(() => broadcast('pet-say', pet.greeting()), 3000);
     }
   };
   greetDay();
@@ -546,9 +552,9 @@ async function init() {
       focusMode = shouldFocus;
       pushFullState();
       if (shouldFocus) {
-        broadcast('pet-say', '主人专注干活呢～我在旁边安静待着，不打扰你');
+        if (greetingOn()) broadcast('pet-say', '主人专注干活呢～我在旁边安静待着，不打扰你');
       } else if (prev) {
-        broadcast('pet-say', '主人回来啦！专心干活辛苦了～');
+        if (greetingOn()) broadcast('pet-say', '主人回来啦！专心干活辛苦了～');
       }
     }
   }, 10 * 1000);
@@ -568,6 +574,10 @@ async function init() {
   }
   // 屏幕感知：让桌宠"看见"主人屏幕（无 Key / 失败时自动静默）
   startVisionLoop();
+  // 调试/演示：PET_OPEN_MAIN=1 时启动后自动打开主界面（PET_OPEN_PAGE 可指定首页/皮肤/模块/设置）
+  if (process.env.PET_OPEN_MAIN === '1') {
+    setTimeout(() => openMainWindow(process.env.PET_OPEN_PAGE || 'home'), 1500);
+  }
 }
 
 app.whenReady().then(init);
@@ -581,6 +591,125 @@ app.on('will-quit', () => {
   if (proxy) proxy.stop();
   stopWalk();
   stopVisionLoop();
+});
+
+/* ---------------- APP 主界面窗口（首页/皮肤/模块/设置） ---------------- */
+let mainWin = null;
+
+function openMainWindow(page) {
+  if (mainWin && !mainWin.isDestroyed()) {
+    mainWin.show();
+    mainWin.focus();
+    return;
+  }
+  mainWin = new BrowserWindow({
+    width: 780, height: 580,
+    minWidth: 700, minHeight: 520,
+    title: '豆包桌宠',
+    backgroundColor: '#1c2438',
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  const query = ['home', 'skin', 'module', 'setting'].includes(page) ? { query: { page } } : undefined;
+  mainWin.loadFile(path.join(__dirname, 'renderer', 'main-window.html'), query);
+  mainWin.once('ready-to-show', () => mainWin.show());
+  mainWin.on('closed', () => { mainWin = null; });
+}
+
+/* ---- 皮肤系统：assets/skin/<皮肤名>/pet.png = 贴图皮肤；shizuku = 内置 Live2D ---- */
+function currentSkinId() {
+  const s = config.skin || {};
+  if (s.type === 'image' && s.file) {
+    const dir = path.basename(path.dirname(s.file));
+    return dir ? 'skin:' + dir : 'shizuku';
+  }
+  return 'shizuku';
+}
+function scanSkins() {
+  const list = [];
+  const using = currentSkinId();
+  list.push({
+    id: 'shizuku', name: 'Shizuku（默认）', type: 'live2d',
+    thumb: path.join(__dirname, 'assets', 'pet.png'), using: using === 'shizuku'
+  });
+  const skinRoot = path.join(__dirname, 'assets', 'skin');
+  if (fs.existsSync(skinRoot)) {
+    for (const dir of fs.readdirSync(skinRoot)) {
+      const d = path.join(skinRoot, dir);
+      let st;
+      try { st = fs.statSync(d); } catch (_) { continue; }
+      if (!st.isDirectory()) continue;
+      const petImg = path.join(d, 'pet.png');
+      if (!fs.existsSync(petImg)) continue;
+      let name = dir;
+      const meta = path.join(d, 'skin.json');
+      if (fs.existsSync(meta)) {
+        try { name = JSON.parse(fs.readFileSync(meta, 'utf8')).name || dir; } catch (_) {}
+      }
+      list.push({ id: 'skin:' + dir, name, type: 'image', thumb: petImg, using: using === 'skin:' + dir });
+    }
+  }
+  return list;
+}
+
+ipcMain.handle('get-skin-list', () => ({ ok: true, list: scanSkins() }));
+ipcMain.handle('set-skin', (e, id) => {
+  try {
+    if (id === 'shizuku') {
+      config.skin = { type: 'live2d' };
+    } else if (typeof id === 'string' && id.startsWith('skin:')) {
+      const dir = id.slice(5);
+      if (!/^[^/\\]+$/.test(dir)) return { ok: false, error: 'bad-skin-id' };
+      const petImg = path.join(__dirname, 'assets', 'skin', dir, 'pet.png');
+      if (!fs.existsSync(petImg)) return { ok: false, error: 'skin-not-found' };
+      config.skin = { type: 'image', file: path.posix.join('assets', 'skin', dir, 'pet.png') };
+    } else {
+      return { ok: false, error: 'bad-skin-id' };
+    }
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    if (win && !win.isDestroyed()) win.webContents.reload();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+/* ---- 模块开关 ---- */
+ipcMain.handle('get-modules', () => {
+  const m = {};
+  for (const k of Object.keys(DEFAULT_MODULES)) {
+    m[k] = typeof config.modules[k] === 'boolean' ? config.modules[k] : DEFAULT_MODULES[k];
+  }
+  return { ok: true, modules: m };
+});
+ipcMain.handle('set-modules', (e, patch) => {
+  try {
+    const p = (patch && typeof patch === 'object') ? patch : {};
+    for (const k of Object.keys(DEFAULT_MODULES)) {
+      if (typeof p[k] === 'boolean') config.modules[k] = p[k];
+    }
+    if (typeof p.vision === 'boolean') {
+      if (!config.vision) config.vision = {};
+      config.vision.enabled = p.vision;
+      stopVisionLoop();
+      startVisionLoop();
+    }
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    return { ok: true, needRestart: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('open-skin-folder', () => {
+  const dir = path.join(__dirname, 'assets', 'skin');
+  fs.mkdirSync(dir, { recursive: true });
+  require('electron').shell.openPath(dir);
+  return { ok: true };
 });
 
 /* ---------------- 设置面板 & 一键自动更新 ----------------
@@ -817,7 +946,8 @@ ipcMain.handle('get-state', () => ({
   proxyPort: config.proxyPort,
   apiKeyConfigured: !!(config.apiKey || process.env.DEEPSEEK_API_KEY),
   doubaoTask: doubaoTask,
-  focusMode: focusMode
+  focusMode: focusMode,
+  skin: config.skin || { type: 'live2d' }
 }));
 
 ipcMain.handle('refresh-balance', async () => {
@@ -998,6 +1128,10 @@ ipcMain.on('show-context-menu', (e) => {
       }
     },
     { type: 'separator' },
+    {
+      label: '打开主界面…',
+      click: () => openMainWindow()
+    },
     {
       label: '设置…',
       click: () => {

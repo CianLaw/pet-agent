@@ -36,8 +36,13 @@ body {
 .mw-nav-item {
   padding: 9px 10px; border-radius: 9px; font-size: 12.5px;
   color: rgba(255,255,255,0.68); cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
   transition: all .15s;
 }
+.mw-ico { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.9; }
+.mw-ico-paw { width: 44px; height: 44px; color: rgba(255,255,255,0.35); }
+.mw-skin-thumb-empty { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.35); }
+.mw-skin-thumb-empty svg { width: 34px; height: 34px; }
 .mw-nav-item:hover { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.92); }
 .mw-nav-item.active { background: rgba(255,255,255,0.16); color: #fff; font-weight: 600; }
 .mw-nav-version { margin-top: auto; text-align: center; font-size: 10px; color: rgba(255,255,255,0.4); padding-top: 8px; }

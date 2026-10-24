@@ -1,0 +1,6 @@
+{
+  "appId": "com.doubao.petagent.mobile",
+  "appName": "豆包桌宠",
+  "webDir": "mobile",
+  "server": { "androidScheme": "https" }
+}

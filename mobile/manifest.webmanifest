@@ -1,0 +1,14 @@
+{
+  "name": "豆包桌宠",
+  "short_name": "豆包桌宠",
+  "description": "手机上的桌面宠物：触摸互动、喂食、陪玩、AI 聊天",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a2135",
+  "theme_color": "#1b2133",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

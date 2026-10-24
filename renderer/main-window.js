@@ -54,7 +54,7 @@
       card.className = 'mw-skin-card' + (s.using ? ' using' : '');
       const thumb = s.thumb
         ? `<img class="mw-skin-thumb" src="${s.thumb}" alt="" />`
-        : `<div class="mw-skin-thumb" style="display:flex;align-items:center;justify-content:center;font-size:26px;">🖼️</div>`;
+        : `<div class="mw-skin-thumb mw-skin-thumb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-4.5-4.5L6 21"/></svg></div>`;
       card.innerHTML = `
         ${thumb}
         <div class="mw-skin-name">${s.name}</div>

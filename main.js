@@ -601,15 +601,19 @@ function isNewer(localArr, remoteArr) {
   return false;
 }
 
-// JSON 请求：直连 → 失败走本地代理（GET）
+// JSON 请求：直连 → 失败走本地代理（GET，自动跟随 302 重定向）
 function fetchJson(url, timeoutMs) {
   return new Promise((resolve) => {
-    const tryProxy = () => {
+    const tryProxy = (u) => {
       const http = require('http');
       const req = http.request({
-        host: PROXY_HOST, port: PROXY_PORT, path: url, method: 'GET',
-        headers: { 'User-Agent': 'pet-agent-updater', Accept: 'application/vnd.github+json', Host: new URL(url).host }
+        host: PROXY_HOST, port: PROXY_PORT, path: u, method: 'GET',
+        headers: { 'User-Agent': 'pet-agent-updater', Accept: 'application/vnd.github+json', Host: new URL(u).host }
       }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          res.resume();
+          return tryProxy(new URL(res.headers.location, u).href);
+        }
         let data = '';
         res.on('data', (c) => (data += c));
         res.on('end', () => {
@@ -624,27 +628,35 @@ function fetchJson(url, timeoutMs) {
     const req = https.get(url, {
       headers: { 'User-Agent': 'pet-agent-updater', Accept: 'application/vnd.github+json' }
     }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        return fetchJson(new URL(res.headers.location, url).href, timeoutMs).then(resolve);
+      }
       let data = '';
       res.on('data', (c) => (data += c));
       res.on('end', () => {
         try { resolve({ ok: true, data: JSON.parse(data) }); }
-        catch (_) { tryProxy(); }
+        catch (_) { tryProxy(url); }
       });
     });
-    req.on('error', () => tryProxy());
-    req.setTimeout(timeoutMs || 20000, () => { req.destroy(); tryProxy(); });
+    req.on('error', () => tryProxy(url));
+    req.setTimeout(timeoutMs || 20000, () => { req.destroy(); tryProxy(url); });
   });
 }
 
-// 下载文件到 dest：直连 → 失败走本地代理
+// 下载文件到 dest：直连 → 失败走本地代理（自动跟随 302 重定向）
 function downloadFile(url, dest) {
   return new Promise((resolve, reject) => {
-    const tryProxy = () => {
+    const tryProxy = (u) => {
       const http = require('http');
       const req = http.request({
-        host: PROXY_HOST, port: PROXY_PORT, path: url, method: 'GET',
-        headers: { 'User-Agent': 'pet-agent-updater', Host: new URL(url).host }
+        host: PROXY_HOST, port: PROXY_PORT, path: u, method: 'GET',
+        headers: { 'User-Agent': 'pet-agent-updater', Host: new URL(u).host }
       }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          res.resume();
+          return tryProxy(new URL(res.headers.location, u).href);
+        }
         if (res.statusCode >= 400) { res.resume(); return reject(new Error('http-' + res.statusCode)); }
         const f = fs.createWriteStream(dest);
         res.pipe(f);
@@ -656,13 +668,17 @@ function downloadFile(url, dest) {
     };
     const https = require('https');
     const req = https.get(url, { headers: { 'User-Agent': 'pet-agent-updater' } }, (res) => {
-      if (res.statusCode >= 400) { res.resume(); return tryProxy(); }
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        return downloadFile(new URL(res.headers.location, url).href, dest).then(resolve, reject);
+      }
+      if (res.statusCode >= 400) { res.resume(); return tryProxy(url); }
       const f = fs.createWriteStream(dest);
       res.pipe(f);
       f.on('finish', () => f.close(() => resolve()));
-      f.on('error', (e) => { fs.rmSync(dest, { force: true }); tryProxy(); });
+      f.on('error', (e) => { fs.rmSync(dest, { force: true }); tryProxy(url); });
     });
-    req.on('error', () => { fs.rmSync(dest, { force: true }); tryProxy(); });
+    req.on('error', () => { fs.rmSync(dest, { force: true }); tryProxy(url); });
     req.setTimeout(15000, () => { req.destroy(); });
   });
 }

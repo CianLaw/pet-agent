@@ -236,14 +236,44 @@
         motionBus.pose('itemBody', { tx: 0, ty: 30, op: 0, rt: 0 }, { speed: 0.5 });
       }
     };
-    function pickIdleAction() {
-      const total = Object.keys(IDLE_ACTIONS).reduce((a, k) => a + IDLE_ACTIONS[k].weight, 0);
-      let r = Math.random() * total;
-      for (const k in IDLE_ACTIONS) {
-        r -= IDLE_ACTIONS[k].weight;
-        if (r <= 0) return IDLE_ACTIONS[k];
+    /* 豆包兔娘专属动作：耳朵抖 / 转圈跳舞 / 比心跳（仅 doubaotu 系列皮肤启用） */
+    const RABBIT_EXTRA = {
+      earTwitch: { weight: 14, steps: [
+        [0, { sc: 1.02, ty: -3 }, 0.22],
+        [160, { sc: 0.985, ty: 2 }, 0.22],
+        [320, { sc: 1.02, ty: -3 }, 0.22],
+        [480, { sc: 0.99, ty: 1 }, 0.2],
+        [700, { sc: 1, ty: 0 }, 0.16]
+      ] },
+      twirl: { weight: 6, steps: [
+        [0, { rt: 90, ty: -4 }, 0.18],
+        [700, { rt: 220 }, 0.14],
+        [1300, { rt: 360 }, 0.12],
+        [1700, { rt: 360, ty: 0 }, 0.1],
+        [2200, { rt: 0 }, 0.08]
+      ] },
+      heartJump: { weight: 12, steps: [
+        [0, { ty: -12, rt: 3, sc: 1.03 }, 0.2],
+        [350, { ty: 0, rt: 0 }, 0.14],
+        [700, { ty: -6, rt: -2 }, 0.16],
+        [1000, { ty: 0, rt: 0 }, 0.12]
+      ] }
+    };
+    function idleActionPool() {
+      if (lastSkinId.startsWith('doubaotu')) {
+        return Object.assign({}, IDLE_ACTIONS, RABBIT_EXTRA);
       }
-      return IDLE_ACTIONS.lookAround;
+      return IDLE_ACTIONS;
+    }
+    function pickIdleAction() {
+      const pool = idleActionPool();
+      const total = Object.keys(pool).reduce((a, k) => a + pool[k].weight, 0);
+      let r = Math.random() * total;
+      for (const k in pool) {
+        r -= pool[k].weight;
+        if (r <= 0) return pool[k];
+      }
+      return pool.lookAround;
     }
     let idleTimer = null;
     function scheduleIdle() {
@@ -909,7 +939,10 @@
   /* ---------- 订阅状态 ---------- */
   /* 皮肤：贴图皮肤时隐藏 Live2D、显示贴图层；Live2D 皮肤时反之 */
   let lastSkin = null;
+  let lastSkinId = '';
   function applySkin(skin) {
+    lastSkin = skin && skin.type ? skin : null;
+    lastSkinId = (skin && skin.type === 'image' && skin.file) ? (skin.file.split('/')[2] || '') : '';
     lastSkin = skin && skin.type ? skin : null;
     const img = $('skinImage');
     const l2d = document.getElementById('live2d-widget');

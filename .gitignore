@@ -35,3 +35,6 @@ android/app/capacitor.build.gradle
 
 # Mimosa 本地扫描缓存
 .mimosa/
+
+# 桌面打包产物
+release-build/

@@ -95,21 +95,44 @@
   render();
 
   /* ---------- 皮肤 ---------- */
-  const SKINS = [
+  // 与桌面端同步：动态读取各皮肤 skin.json（含团团两款）
+  const SKIN_DIRS = ['default', 'cat', 'shiba', 'bear', 'doubaotu', 'doubaotu2'];
+  const FALLBACK_SKINS = [
     { id: 'default', name: '默认' },
     { id: 'cat', name: '橘猫' },
     { id: 'shiba', name: '柴犬' },
-    { id: 'bear', name: '小白熊' }
+    { id: 'bear', name: '小白熊' },
+    { id: 'doubaotu', name: '豆包兔娘·团团' },
+    { id: 'doubaotu2', name: '豆包兔娘·团团（裙摆限定）' }
   ];
+  let SKINS = FALLBACK_SKINS;
+  async function loadSkins() {
+    const list = [];
+    for (const dir of SKIN_DIRS) {
+      let meta = { name: dir };
+      try {
+        const r = await fetch('assets/skin/' + dir + '/skin.json');
+        if (r.ok) meta = await r.json();
+      } catch (_) { /* 无 skin.json：用目录名 */ }
+      list.push({ id: dir, name: meta.name || dir, desc: meta.desc || '' });
+    }
+    if (list.length) SKINS = list;
+    renderSkins();
+  }
   function renderSkins() {
     const list = $('skinList');
     list.innerHTML = '';
     SKINS.forEach((s) => {
       const card = document.createElement('div');
       card.className = 'skin-card' + (data.skin === s.id ? ' using' : '');
-      card.innerHTML = `<img src="assets/skin/${s.id}/pet.png" alt="" /><span>${s.name}${data.skin === s.id ? ' · 使用中' : ''}</span>`;
+      card.innerHTML = `<img src="assets/skin/${s.id}/pet.png" alt="" />
+        <div class="skin-card-info">
+          <span>${s.name}${data.skin === s.id ? ' · 使用中' : ''}</span>
+          ${s.desc ? `<em>${s.desc}</em>` : ''}
+        </div>`;
       card.addEventListener('click', () => {
         data.skin = s.id; save(); render();
+        $('aboutAvatar').src = 'assets/skin/' + s.id + '/pet.png';
         closeSkin(); say('换上新形象啦～');
       });
       list.appendChild(card);
@@ -121,8 +144,31 @@
   $('skinMask').addEventListener('click', closeSkin);
 
   /* ---------- 设置 ---------- */
+  const APP_VERSION = '5.9.2';
+  const REPO = 'CianLaw/pet-agent';
+  const CHANGELOG = [
+    { v: '5.9.2', items: ['手机版与桌面端百分百同步', '新增软件封面（关于区）', '新增「检查更新」一键检测下载'] },
+    { v: '5.9.1', items: ['兔娘 IP 命名「团团」', '团团专属台词库（傲娇口吻）', '皮肤简介展示'] },
+    { v: '5.9.0', items: ['伪骨骼实体化：分层物理+眨眼+物品状态机', '动作导演器统一调度'] },
+    { v: '5.5.4', items: ['修复贴图皮肤无法点击/拖拽', '兔娘动作大幅增强'] },
+    { v: '5.5.3', items: ['新增豆包兔娘·团团两款皮肤', '兔娘专属动作：耳抖/转圈/比心'] }
+  ];
+  function renderLog() {
+    const box = $('logList');
+    box.innerHTML = '';
+    CHANGELOG.forEach((c) => {
+      const el = document.createElement('div');
+      el.className = 'log-item';
+      el.innerHTML = `<b>v${c.v}</b><ul>${c.items.map((i) => `<li>${i}</li>`).join('')}</ul>`;
+      box.appendChild(el);
+    });
+  }
   const openSet = () => {
     $('setSheet').classList.remove('hidden');
+    $('curVer').textContent = '当前版本 v' + APP_VERSION;
+    $('aboutVer').textContent = 'v' + APP_VERSION;
+    $('aboutAvatar').src = 'assets/skin/' + data.skin + '/pet.png';
+    renderLog();
     const cfg = JSON.parse(localStorage.getItem('doubao_pet_api') || '{}');
     $('setApiBase').value = cfg.apiBase || 'https://api.deepseek.com';
     $('setApiKey').value = cfg.apiKey || '';
@@ -141,6 +187,65 @@
     $('setTip').textContent = '已保存。若未配 Key，桌宠会用离线回话陪你聊天。';
     setTimeout(closeSet, 900);
   });
+
+  /* ---------- 检查更新（与桌面端一致：GitHub Releases） ---------- */
+  const updateResult = $('updateResult');
+  async function checkUpdate() {
+    const btn = $('btnCheckUpdate');
+    btn.disabled = true;
+    btn.textContent = '检查中…';
+    $('latestInfo').textContent = '正在连接 GitHub Releases…';
+    updateResult.classList.add('hidden');
+    try {
+      const r = await fetch('https://api.github.com/repos/' + REPO + '/releases/latest', {
+        headers: { 'Accept': 'application/vnd.github+json' }
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const rel = await r.json();
+      const latest = String(rel.tag_name || '').replace(/^v/, '');
+      if (!latest) throw new Error('empty');
+      const hasNew = cmpVer(latest, APP_VERSION) > 0;
+      $('latestInfo').textContent = hasNew ? '发现新版本 v' + latest + '！' : '已是最新版本（v' + APP_VERSION + '）';
+      updateResult.classList.remove('hidden');
+      if (hasNew) {
+        let apkUrl = '';
+        (rel.assets || []).forEach((a) => {
+          if (/\.apk$/i.test(a.name)) apkUrl = a.browser_download_url || '';
+        });
+        updateResult.innerHTML = `<span>点击下载最新 APK 安装更新（免重装数据）。</span>
+          <button class="btn-primary btn-dl" id="btnDlApk">下载 APK（v${latest}）</button>`;
+        const dl = $('btnDlApk');
+        dl.addEventListener('click', () => {
+          if (apkUrl) {
+            // Capacitor 原生 WebView 打开系统浏览器下载
+            const w = window.open(apkUrl, '_system');
+            if (!w) location.href = apkUrl;
+          } else {
+            location.href = 'https://github.com/' + REPO + '/releases/latest';
+          }
+        });
+      } else {
+        updateResult.innerHTML = `<span>当前已是最新版本，无需更新。</span>`;
+      }
+    } catch (err) {
+      $('latestInfo').textContent = '检查失败：' + (err.message || err);
+      updateResult.classList.remove('hidden');
+      updateResult.innerHTML = `<span>请检查网络后重试，或到 GitHub Releases 手动下载：<a href="https://github.com/${REPO}/releases/latest" target="_blank" rel="noopener">打开 Releases</a></span>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '检查更新';
+    }
+  }
+  function cmpVer(a, b) {
+    const pa = String(a).split('.').map(Number);
+    const pb = String(b).split('.').map(Number);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const d = (pa[i] || 0) - (pb[i] || 0);
+      if (d) return d;
+    }
+    return 0;
+  }
+  $('btnCheckUpdate').addEventListener('click', checkUpdate);
 
   /* ---------- 聊天 ---------- */
   const CHAT_KEY = 'doubao_pet_chat';
@@ -173,6 +278,7 @@
   }
   $('actChat').addEventListener('click', showChat);
   $('chatClose').addEventListener('click', () => $('chatPanel').classList.add('hidden'));
+  loadSkins();
 
   async function chatSend() {
     const input = $('chatInput');

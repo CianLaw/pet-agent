@@ -21,7 +21,10 @@
     <header class="topbar">
       <div class="topbar-left">
         <span class="logo-dot"></span>
-        <span class="logo-text">豆包桌宠</span>
+        <div class="logo-texts">
+          <span class="logo-text">豆包桌宠</span>
+          <span class="logo-slogan">AI 桌宠 · 常驻你身边</span>
+        </div>
       </div>
       <div class="topbar-right">
         <button class="ico-btn" id="btnSkin" aria-label="皮肤">
@@ -96,6 +99,33 @@
     <section class="sheet hidden" id="setSheet">
       <div class="sheet-mask" id="setMask"></div>
       <div class="sheet-body">
+        <div class="sheet-title">设置</div>
+
+        <!-- 关于 / 封面 -->
+        <div class="about-row">
+          <img class="about-avatar" id="aboutAvatar" src="assets/skin/doubaotu/pet.png" alt="团团" />
+          <div class="about-meta">
+            <b class="about-name">豆包桌宠</b>
+            <span class="about-slogan">AI 桌宠 · 常驻你身边</span>
+            <span class="about-ver" id="aboutVer">v5.9.2</span>
+          </div>
+        </div>
+
+        <!-- 版本与更新 -->
+        <div class="update-row">
+          <div class="update-info">
+            <b id="curVer">当前版本 v5.9.1</b>
+            <span id="latestInfo">点击检查，获取最新版本</span>
+          </div>
+          <button class="btn-check" id="btnCheckUpdate">检查更新</button>
+        </div>
+        <div class="update-result hidden" id="updateResult"></div>
+
+        <!-- 更新日志 -->
+        <div class="sheet-title">更新日志</div>
+        <div class="log-list" id="logList"></div>
+
+        <!-- API 配置 -->
         <div class="sheet-title">API 配置 <span class="sheet-sub">用于 AI 聊天（可选）</span></div>
         <label class="field"><span>接口地址</span><input id="setApiBase" type="text" placeholder="https://api.deepseek.com" /></label>
         <label class="field"><span>API Key</span><input id="setApiKey" type="password" placeholder="留空保持不变" /></label>

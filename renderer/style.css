@@ -619,3 +619,48 @@ body { position: relative; }
   0%,100% { transform: translateX(-50%) scale(1); }
   50% { transform: translateX(-50%) scale(1.04); }
 }
+
+/* ================= 平滑过渡：所有弹出/遮罩不再"突然变出来" ================= */
+/* 面板/气泡：显示淡入+上浮，隐藏淡出+下沉 */
+.bubble,
+.mini-bubble,
+.chat-panel,
+.settings-panel,
+#sleepOverlay,
+#sleepZzz,
+.drop-hint {
+  transition: opacity .32s ease, transform .32s ease, visibility .32s;
+}
+.bubble.hidden, .mini-bubble.hidden,
+.chat-panel.hidden, .settings-panel.hidden,
+#sleepOverlay.hidden, #sleepZzz.hidden,
+.drop-hint.hidden {
+  display: block;                       /* 覆盖 display:none，改用透明度过渡 */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.bubble.hidden, .mini-bubble.hidden { transform: translateY(10px); }
+.chat-panel.hidden, .settings-panel.hidden { transform: translateY(14px); }
+#sleepZzz.hidden { transform: translateY(-10px); }
+#sleepOverlay.hidden { transform: none; }
+.drop-hint.hidden { transform: translateX(-50%) scale(.95); }
+
+/* 喂食/摸头爱心：柔和出现、飘落消失 */
+.heart {
+  animation: heartFly 1.1s cubic-bezier(.2,.8,.4,1) forwards;
+}
+@keyframes heartFly {
+  0%   { transform: translate(0, 6px) scale(.4); opacity: 0; }
+  18%  { transform: translate(0, 0) scale(1.05); opacity: 1; }
+  100% { transform: translate(var(--dx, 40px), var(--dy, -90px)) scale(1.15); opacity: 0; }
+}
+.head-heart {
+  animation: headHeart 1.2s cubic-bezier(.25,.8,.45,1) forwards;
+}
+@keyframes headHeart {
+  0%   { transform: translateY(22px) scale(.3); opacity: 0; }
+  28%  { transform: translateY(0) scale(1.3); opacity: 1; }
+  72%  { transform: translateY(-16px) scale(1); opacity: 1; }
+  100% { transform: translateY(-40px) scale(.9) rotate(10deg); opacity: 0; }
+}

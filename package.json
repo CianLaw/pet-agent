@@ -1,6 +1,6 @@
 {
   "name": "pet-agent",
-  "version": "5.4.8",
+  "version": "5.4.9",
   "description": "豆包桌宠：Live2D 桌面宠物 + 豆包 AI 聊天 + 屏幕感知 + 本地代理用量统计 + 系统监测 + 一键自动更新",
   "main": "main.js",
   "scripts": {

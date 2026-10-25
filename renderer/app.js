@@ -576,9 +576,13 @@
    */
   function setLive2DVisible(visible) {
     const el = document.getElementById('live2d-widget');
-    if (el) {
-      el.classList.toggle('walk-hidden', !visible);
+    if (!el) return;
+    // 贴图皮肤下 Live2D 永远隐藏（防止与贴图重叠）；Live2D 皮肤用 walk-hidden 控制透明度
+    if (lastSkin && lastSkin.type === 'image') {
+      el.style.display = 'none';
+      return;
     }
+    el.classList.toggle('walk-hidden', !visible);
   }
 
   function finishWalkOut() {
@@ -708,7 +712,9 @@
 
   /* ---------- 订阅状态 ---------- */
   /* 皮肤：贴图皮肤时隐藏 Live2D、显示贴图层；Live2D 皮肤时反之 */
+  let lastSkin = null;
   function applySkin(skin) {
+    lastSkin = skin && skin.type ? skin : null;
     const img = $('skinImage');
     const l2d = document.getElementById('live2d-widget');
     if (skin && skin.type === 'image' && skin.file) {
@@ -716,11 +722,28 @@
       img.style.display = 'block';
       if (l2d) l2d.style.display = 'none';
       walkSprite.style.backgroundImage = `url('../${skin.file}')`;
-    } else {
-      img.style.display = 'none';
-      if (l2d) l2d.style.display = '';
-      walkSprite.style.backgroundImage = '';
+      return;
     }
+    img.style.display = 'none';
+    if (l2d) l2d.style.display = '';
+    walkSprite.style.backgroundImage = '';
+  }
+  // Live2D 容器由第三方库异步创建：容器出现后重放当前皮肤（避免贴图皮肤下 Live2D 重叠）
+  function ensureSkinAfterLive2D() {
+    const check = () => {
+      const l2d = document.getElementById('live2d-widget');
+      if (l2d && lastSkin && lastSkin.type === 'image') {
+        l2d.style.display = 'none';
+        return true;
+      }
+      return false;
+    };
+    if (check()) return;
+    const obs = new MutationObserver(() => {
+      if (check()) obs.disconnect();
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => obs.disconnect(), 10000);   // 10s 兜底，避免长期占用
   }
   window.petAgent.onState((s) => {
     render(s);
@@ -925,6 +948,7 @@
     });
     // 互动/拖动只绑定在 Live2D 容器上（修复双重触发）
     setTimeout(tryBindLive2D, 500);
+    setTimeout(ensureSkinAfterLive2D, 600);
     console.log('[renderer] Live2D init requested');
   }
 

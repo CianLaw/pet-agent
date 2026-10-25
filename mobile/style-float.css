@@ -1,0 +1,77 @@
+/* 豆包桌宠 · 悬浮窗样式（手机版，无操作栏，纯宠物） */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  background: transparent;
+  color: rgba(255,255,255,0.92);
+  user-select: none; -webkit-user-select: none;
+  touch-action: none;
+}
+
+.blob { position: absolute; border-radius: 50%; filter: blur(40px); opacity: 0.35; pointer-events: none; }
+.blob-a { width: 90px; height: 90px; background: rgba(110,140,255,0.45); top: -20px; right: -20px; }
+.blob-b { width: 70px; height: 70px; background: rgba(160,120,255,0.38); bottom: 20px; left: -20px; }
+
+/* 关闭手柄 */
+#floatClose {
+  position: absolute; top: 6px; right: 6px; z-index: 20;
+  width: 22px; height: 22px; border: none; border-radius: 50%;
+  background: rgba(20,26,42,0.5); color: rgba(255,255,255,0.7);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  padding: 0;
+}
+#floatClose svg { width: 12px; height: 12px; }
+#floatClose:active { background: rgba(20,26,42,0.8); }
+
+/* 气泡 */
+.mini-bubble {
+  position: absolute; top: 6%; left: 0; right: 0;
+  margin: 0 auto; max-width: 88%;
+  background: rgba(255,255,255,0.13); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px; padding: 8px 11px;
+  font-size: 11.5px; line-height: 1.5; text-align: center;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  z-index: 15; word-break: break-word; pointer-events: none;
+}
+
+/* 特效 */
+.fx { position: absolute; inset: 0; pointer-events: none; z-index: 8; overflow: hidden; }
+.heart {
+  position: absolute; font-size: 15px;
+  animation: heartUp 1.1s ease-out forwards;
+  --dx: 0px; --dy: -60px;
+}
+@keyframes heartUp {
+  from { opacity: 1; transform: translate(0, 0) scale(0.7); }
+  to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.15); }
+}
+
+/* 宠物主体：贴图伪骨骼容器（几何与桌面一致：200x440） */
+.pet-wrap { position: absolute; left: 0; right: 0; bottom: 0; height: 440px; pointer-events: none; }
+#petBody { position: absolute; left: 0; right: 0; bottom: 0; width: 200px; height: 440px; margin: 0 auto; }
+.float-pet-img {
+  width: 100%; height: 100%; object-fit: contain; display: block;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,0.35));
+}
+
+/* 头部/眨眼叠加层（几何与桌面 buildParts 一致） */
+.skin-head-group { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; width: 200px; height: 440px; margin: 0 auto; pointer-events: none; }
+.rig-head { position: absolute; left: 0; top: 0; width: 200px; height: 440px; object-fit: contain; }
+.rig-blink { position: absolute; left: 0; top: 0; width: 200px; height: 440px; object-fit: contain; opacity: 0; transition: opacity 0.06s; }
+.skin-part-wrap { position: absolute; left: 50%; bottom: 0; width: 200px; height: 440px; margin-left: -100px; z-index: 5; pointer-events: none; }
+.skin-part { position: absolute; pointer-events: none; }
+
+/* Live2D 增强层（可选）透明 */
+#petBody canvas, .live2d-widget, #live2d-widget canvas { background: transparent !important; }
+
+/* 物品持有层 */
+.held-item {
+  position: absolute; z-index: 9; left: 0; bottom: 0;
+  width: 200px; height: 440px; margin: 0 auto; left: 50%; margin-left: -100px;
+  font-size: 34px; text-align: center; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35));
+}
+
+.hidden { display: none !important; }

@@ -1,0 +1,601 @@
+/* 豆包桌宠 · 悬浮窗桌宠（手机版 v5.9.3）
+ * 与桌面端同一套表演引擎：motionBus 连续参数插值 + Idle 呼吸层 + 眨眼 +
+ * 伪骨骼部件弹簧物理 + 加权待机行为链 + Action Director + 物品持有状态机。
+ * 所有姿态变化都有起点、路径、落点——绝不"凭空变出来"。
+ */
+'use strict';
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  const miniBubble = $('miniBubble');
+  const miniBubbleText = $('miniBubbleText');
+  const petBody = $('petBody');
+  const floatPetImg = $('floatPetImg');
+  const fx = $('fx');
+  const heldItem = $('heldItem');
+  const skinHeadGroup = $('skinHeadGroup');
+  const rigHead = $('rigHead');
+  const rigBlinkHalf = $('rigBlinkHalf');
+  const rigBlinkClosed = $('rigBlinkClosed');
+  const partWrap = $('partWrap');
+
+  /* ---------- 团团台词库（与桌面端一致） ---------- */
+  const CHAT_LINES = [
+    '咿呀——吓我一跳捏',
+    '戳什么戳，本兔是让你云吸的，不是让你戳的',
+    '这一戳，加一个胡萝卜，谢谢',
+    '呼……刚才差点睡着，被你戳醒了',
+    '你的手指是棒棒糖做的吗？这么爱戳',
+    '好好好，陪你玩，就一秒钟哦',
+    '别看我，看兔子',
+    '本兔今天也很可爱，不信你看',
+    '来啦来啦，兔兔驾到～',
+    '你在忙啥？让兔看看',
+    '偷偷告诉你，本兔是你的幸运兔',
+    '充电完毕，又能再可爱一天'
+  ];
+  const ACTION_LINES = [
+    '哈——欠……本兔的睡眠质量，了解一下',
+    '一二三，起！这桌子今天归本兔管了',
+    '吸溜～咖啡续命，兔命也是命',
+    '看书看书，看的是《胡萝卜的一百种吃法》',
+    '嗯？手机有消息？我先看一眼',
+    '耳朵痒痒的，甩一下',
+    '转个圈给你看看裙摆，好看吧？',
+    '本兔的心跳，怦怦的，听见没'
+  ];
+  const JOKES = [
+    '兔子为什么不吃窝边草？因为外卖到了',
+    '团团去面试，考官问：你有什么特长？团团：耳朵特长',
+    '为什么团团从不迟到？因为胡萝卜只能保温不能包退',
+    '团团减肥失败的原因：胡萝卜是素的，但开心果不是',
+    '团团今天起得早，因为闹钟叫了两次：起床和回笼'
+  ];
+  function timeGreeting() {
+    const h = new Date().getHours();
+    if (h < 6) return '夜深啦，本兔守着你～';
+    if (h < 11) return '早上好呀，胡萝卜早餐已就位';
+    if (h < 14) return '中午好，本兔在偷偷打盹';
+    if (h < 18) return '下午好，来杯胡萝卜汁吗？';
+    return '晚上好，今天也要开开心心哦';
+  }
+  function randomChat() {
+    return CHAT_LINES[Math.floor(Math.random() * CHAT_LINES.length)];
+  }
+
+  /* ---------- 持久化：当前皮肤（与主 App 同步） ---------- */
+  const KEY = 'doubao_pet_mobile_v1';
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) {}
+  let currentSkin = data.skin || 'doubaotu';
+
+  /* ---------- 气泡（说话：气泡弹出 + 头部轻点头 + 呼吸加快，人说话有起承转合） ---------- */
+  let miniTimer = null;
+  let talking = false;
+  function showMini(text) {
+    miniBubbleText.textContent = text;
+    miniBubble.classList.remove('hidden');
+    // 说话嘴型：气泡期间头部轻点头（人说话会微点头），呼吸幅短暂加大
+    talking = true;
+    rig.nodPx = 1.1;
+    clearTimeout(miniTimer);
+    miniTimer = setTimeout(() => {
+      miniBubble.classList.add('hidden');
+      talking = false;
+    }, 2500);
+  }
+
+  /* ---------- 特效 ---------- */
+  function spawnHearts(count) {
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('div');
+      el.className = 'heart';
+      el.textContent = ['💗', '💙', '✨', '💖', '🌟'][Math.floor(Math.random() * 5)];
+      el.style.left = (30 + Math.random() * 80) + 'px';
+      el.style.top = (40 + Math.random() * 60) + 'px';
+      el.style.setProperty('--dx', (Math.random() * 90 - 45) + 'px');
+      el.style.setProperty('--dy', -(70 + Math.random() * 70) + 'px');
+      fx.appendChild(el);
+      setTimeout(() => el.remove(), 1300);
+    }
+  }
+
+  /* ---------- 伪骨骼层：眨眼 + 头部视差（贴图皮肤专用） ---------- */
+  const rig = {
+    group: null, headImg: null, blinkHalf: null, blinkClosed: null,
+    on: false,
+    followX: 0, followY: 0, followTX: 0, followTY: 0,
+    blinkTimer: null, blinkBusy: false,
+    partList: [],
+    headTilt: 0,
+    nodPx: 0,
+    dragVX: 0,
+    _prevTilt: 0
+  };
+  let lastSkinId = currentSkin;
+
+  function setBlinkFrame(which) {
+    if (!rig.on || !rig.blinkHalf) return;
+    rig.blinkHalf.style.opacity = which === 'half' ? '1' : '0';
+    rig.blinkClosed.style.opacity = which === 'closed' ? '1' : '0';
+  }
+  function doBlink(opts) {
+    if (!rig.on || rig.blinkBusy) return;
+    rig.blinkBusy = true;
+    const hold = opts && opts.hold;
+    if (hold) {
+      setBlinkFrame('closed');
+      rig.nodPx = 0.9;
+      setTimeout(() => { setBlinkFrame('none'); rig.blinkBusy = false; }, hold);
+    } else {
+      setBlinkFrame('half');
+      rig.nodPx = 0.7;
+      setTimeout(() => setBlinkFrame('closed'), 55);
+      setTimeout(() => setBlinkFrame('half'), 150);
+      setTimeout(() => { setBlinkFrame('none'); rig.blinkBusy = false; }, 205);
+    }
+  }
+  function scheduleBlink() {
+    clearTimeout(rig.blinkTimer);
+    rig.blinkTimer = setTimeout(() => {
+      if (rig.on) {
+        doBlink();
+        if (Math.random() < 0.22) setTimeout(() => doBlink(), 420);
+      }
+      scheduleBlink();
+    }, 2300 + Math.random() * 3800);
+  }
+
+  /* ---------- 伪骨骼部件：耳朵/丝带弹簧物理（与桌面 buildParts 同构） ---------- */
+  function buildParts(skinMeta) {
+    if (rig.partWrap) rig.partWrap.remove();
+    rig.partList = [];
+    const parts = skinMeta && skinMeta.rig && skinMeta.rig.parts;
+    if (!parts || !parts.earL) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'skin-part-wrap';
+    partWrap.appendChild(wrap);
+    rig.partWrap = wrap;
+    const SCALE = 200 / 496, TOP = (440 - 660 * SCALE) / 2;
+    const defs = [
+      Object.assign({ kind: 'ear', z: 5, k: 150, damp: 9, windAmp: 1.1, windFreq: 0.8, phase: 0 }, parts.earL),
+      Object.assign({ kind: 'ear', z: 5, k: 150, damp: 9, windAmp: 1.1, windFreq: 0.92, phase: 2.1 }, parts.earR),
+      Object.assign({ kind: 'ribbon', z: 6, k: 34, damp: 4.4, windAmp: 3.4, windFreq: 0.55, phase: 1.2 }, parts.ribbonL),
+      Object.assign({ kind: 'ribbon', z: 6, k: 30, damp: 4.0, windAmp: 3.6, windFreq: 0.62, phase: 3.6 }, parts.ribbonR)
+    ];
+    for (const def of defs) {
+      if (!def || !def.file || !def.box) continue;
+      const el = document.createElement('img');
+      el.className = 'skin-part';
+      el.alt = '';
+      const [x0, y0, x1, y1] = def.box;
+      el.src = 'assets/skin/' + lastSkinId + '/' + def.file;
+      el.style.left = (x0 * SCALE) + 'px';
+      el.style.top = (y0 * SCALE + TOP) + 'px';
+      el.style.width = ((x1 - x0) * SCALE) + 'px';
+      el.style.height = ((y1 - y0) * SCALE) + 'px';
+      el.style.zIndex = def.z;
+      const ox = ((def.pivot[0] - x0) / (x1 - x0) * 100).toFixed(1);
+      const oy = ((def.pivot[1] - y0) / (y1 - y0) * 100).toFixed(1);
+      el.style.transformOrigin = `${ox}% ${oy}%`;
+      wrap.appendChild(el);
+      rig.partList.push({
+        el, kind: def.kind, k: def.k, damp: def.damp,
+        windAmp: def.windAmp, windFreq: def.windFreq, phase: def.phase,
+        angle: 0, vel: 0, twitchT: 0
+      });
+    }
+  }
+
+  /* ---------- 皮肤加载（异步读 skin.json，与桌面 scanSkins 同逻辑） ---------- */
+  function ensureRig() {
+    fetch('assets/skin/' + lastSkinId + '/skin.json?v=' + Date.now(), { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : {}))
+      .catch(() => ({}))
+      .then((meta) => {
+        floatPetImg.src = 'assets/skin/' + lastSkinId + '/pet.png';
+        const want = !!(meta.rig && meta.rig.blink);
+        rig.on = want;
+        rig.group = skinHeadGroup;
+        rig.headImg = rigHead;
+        rig.blinkHalf = rigBlinkHalf;
+        rig.blinkClosed = rigBlinkClosed;
+        if (!want) {
+          skinHeadGroup.classList.add('hidden');
+          if (rig.partWrap) { rig.partWrap.remove(); rig.partWrap = null; }
+          rig.partList = [];
+          clearTimeout(rig.blinkTimer);
+          return;
+        }
+        skinHeadGroup.classList.remove('hidden');
+        const dir = 'assets/skin/' + lastSkinId + '/';
+        rigHead.src = (meta.rig.parts && meta.rig.parts.head) ? dir + meta.rig.parts.head : 'assets/skin/' + lastSkinId + '/pet.png';
+        rigBlinkHalf.src = dir + 'eyes_half.png';
+        rigBlinkClosed.src = dir + 'eyes_closed.png';
+        const ny = Math.max(0.3, Math.min(0.5, (meta.rig.neckY || 0.41)));
+        const mask = `linear-gradient(180deg, #000 0 ${((ny - 0.07) * 100).toFixed(1)}%, transparent ${((ny + 0.03) * 100).toFixed(1)}%)`;
+        rigHead.style.webkitMaskImage = mask;
+        rigHead.style.maskImage = mask;
+        buildParts(meta);
+        setBlinkFrame('none');
+        scheduleBlink();
+      });
+  }
+
+  /* ---------- motionBus：连续参数插值 + Idle 呼吸层（与桌面一致） ---------- */
+  const motionBus = {
+    els: {}, t: 0,
+    cur: {}, tgt: {}, spd: {},
+    init(id, el) {
+      this.els[id] = el;
+      this.cur[id] = { ty: 0, tx: 0, sc: 1, rt: 0, op: 1 };
+      this.tgt[id] = { ...this.cur[id] };
+      this.spd[id] = 0.12;
+    },
+    pose(id, target, opts = {}) {
+      if (!this.els[id]) return;
+      if (opts.speed != null) this.spd[id] = opts.speed;
+      const c = this.tgt[id];
+      this.tgt[id] = {
+        ty: target.ty != null ? target.ty : c.ty,
+        tx: target.tx != null ? target.tx : c.tx,
+        sc: target.sc != null ? target.sc : c.sc,
+        rt: target.rt != null ? target.rt : c.rt,
+        op: target.op != null ? target.op : c.op
+      };
+    },
+    snap(id, target) {
+      if (!this.els[id]) return;
+      this.pose(id, target);
+      Object.assign(this.cur[id], this.tgt[id]);
+    },
+    play(id, target, opts = {}) {
+      this.pose(id, target, opts);
+      const at = opts.at || 0;
+      const settle = Math.max(160, 850 / (opts.speed || this.spd[id] || 0.12));
+      return new Promise((res) => setTimeout(res, at + settle));
+    },
+    tick(dt) {
+      if (!isFinite(dt) || dt <= 0) dt = 0.016;
+      this.t += dt;
+      const rabbitMode = lastSkinId.startsWith('doubaotu');
+      const talkingAmp = talking ? 1.6 : 0;
+      const amp = (rabbitMode ? 3.0 : 2.2) + talkingAmp;
+      const scAmp = (rabbitMode ? 0.010 : 0.008) + (talking ? 0.006 : 0);
+      const freq = (rabbitMode ? 1.6 : 1.7) * (talking ? 1.5 : 1);
+      const idleTy = Math.sin(this.t * freq) * amp;
+      const idleSc = 1 + Math.sin(this.t * freq) * scAmp;
+      for (const id in this.els) {
+        const c = this.cur[id], tg = this.tgt[id];
+        const k = 1 - Math.exp(-this.spd[id] * dt * 60);
+        c.ty += (tg.ty - c.ty) * k;
+        c.tx += (tg.tx - c.tx) * k;
+        c.sc += (tg.sc - c.sc) * k;
+        c.rt += (tg.rt - c.rt) * k;
+        c.op += (tg.op - c.op) * k;
+        const el = this.els[id];
+        if (id === 'petBody') {
+          const swayRt = Math.sin(this.t * 0.5) * 0.7;
+          const swayTx = Math.sin(this.t * 0.35) * 1.4;
+          el.style.transform = `translateY(${c.ty + idleTy}px) translateX(${c.tx + swayTx}px) scale(${c.sc * idleSc}) rotate(${c.rt + swayRt}deg)`;
+          if (rig.on) {
+            rig.followX += (rig.followTX - rig.followX) * 0.05;
+            rig.followY += (rig.followTY - rig.followY) * 0.05;
+            rig.headTilt += ((swayRt * 0.5 + rig.followX * 0.55) - rig.headTilt) * 0.04;
+            const headRt = rig.headTilt + rig.followY * 0.25;
+            const headTy = idleTy * 0.3 + rig.nodPx;
+            if (skinHeadGroup && !skinHeadGroup.classList.contains('hidden')) {
+              skinHeadGroup.style.transform =
+                `translateY(${c.ty * 0.6 + headTy}px) translateX(${c.tx + rig.followX * 0.5}px) scale(${c.sc * idleSc}) rotate(${c.rt * 0.6 + headRt}deg)`;
+            }
+            const tiltVel = rig.headTilt - (rig._prevTilt || 0);
+            rig._prevTilt = rig.headTilt;
+            for (const part of rig.partList) {
+              let target;
+              if (part.kind === 'ear') {
+                if (Math.random() < dt * 0.35) part.vel += (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 55);
+                target = -tiltVel * 2.4 + Math.sin(this.t * part.windFreq + part.phase) * part.windAmp + rig.followX * 0.9;
+              } else {
+                target = Math.sin(this.t * part.windFreq + part.phase) * part.windAmp
+                  + Math.sin(this.t * 1.7 + part.phase * 2) * part.windAmp * 0.35
+                  - rig.dragVX * 0.045 - rig.followX * 1.1;
+              }
+              const acc = (target - part.angle) * part.k - part.vel * part.damp;
+              part.vel += acc * dt;
+              part.angle += part.vel * dt;
+              part.el.style.transform = `rotate(${part.angle.toFixed(2)}deg)`;
+            }
+            rig.dragVX *= 0.9;
+            rig.nodPx *= 0.88;
+          }
+        } else {
+          el.style.opacity = Math.max(0, Math.min(1, c.op));
+          el.style.transform = `translateY(${c.ty}px) translateX(${c.tx}px) scale(${c.sc}) rotate(${c.rt}deg)`;
+        }
+      }
+    }
+  };
+
+  /* ---------- 物品持有状态机（过渡进出，不凭空出现/消失） ---------- */
+  const director = { lock: false, cancelled: false };
+  const itemState = { held: null, stowTimer: null };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const ITEM_POSE = {
+    handHidden: { tx: 30, ty: 24, op: 0, rt: 0 },
+    held:       { tx: 24, ty: 8, op: 1, rt: -4 },
+    drink:  { mid: { tx: 26, ty: 6, rt: 4 },  up: { tx: 14, ty: -84, rt: -6 } },
+    read:   { mid: { tx: 34, ty: 16, rt: -8 }, up: { tx: 12, ty: -56, rt: 5 } },
+    phone:  { mid: { tx: 38, ty: 14, rt: -10 }, up: { tx: 20, ty: -50, rt: -5 } }
+  };
+
+  async function itemPickup(spec) {
+    clearTimeout(itemState.stowTimer);
+    if (itemState.held !== spec.icon) {
+      if (itemState.held) await itemStow();
+      itemState.held = spec.icon;
+      heldItem.textContent = spec.icon;
+      motionBus.snap('itemBody', ITEM_POSE.handHidden);
+      heldItem.classList.remove('hidden');
+      const seq = ITEM_POSE[spec.kind] || ITEM_POSE.drink;
+      await motionBus.play('itemBody', Object.assign({ op: 1 }, seq.mid), { speed: 0.22 });
+      await motionBus.play('itemBody', seq.up, { speed: 0.16 });
+      await sleep(700);
+    }
+  }
+  async function itemStow() {
+    if (!itemState.held) return;
+    itemState.held = null;
+    clearTimeout(itemState.stowTimer);
+    await motionBus.play('itemBody', ITEM_POSE.handHidden, { speed: 0.18 });
+    heldItem.classList.add('hidden');
+    motionBus.snap('itemBody', ITEM_POSE.handHidden);
+  }
+  function keepHeld(ms) {
+    clearTimeout(itemState.stowTimer);
+    itemState.stowTimer = setTimeout(() => itemStow(), ms);
+  }
+
+  /* ---------- 加权待机行为链（起点→过程→落回 Idle，绝无硬切） ---------- */
+  const IDLE_ACTIONS = {
+    lookAround: { weight: 20, steps: [
+      [0, { rt: 6, tx: 3 }, 0.14],
+      [700, { rt: -6, tx: -3 }, 0.1],
+      [1500, { rt: 0, tx: 0 }, 0.09]
+    ] },
+    nod: { weight: 16, steps: [
+      [0, { ty: 4, rt: 3 }, 0.16],
+      [260, { ty: 0, rt: 0 }, 0.14],
+      [520, { ty: 3, rt: 2 }, 0.16],
+      [780, { ty: 0, rt: 0 }, 0.12]
+    ] },
+    tilt: { weight: 14, steps: [
+      [0, { rt: 10 }, 0.15],
+      [900, { rt: -4 }, 0.12],
+      [1400, { rt: 0 }, 0.1]
+    ] },
+    stretch: { weight: 11, steps: [
+      [0, { ty: -8, sc: 1.06 }, 0.13],
+      [900, { ty: 0, sc: 1 }, 0.1]
+    ] },
+    rubEyes: { weight: 11, eyesClosed: true, steps: [
+      [0, { ty: 6, rt: 6 }, 0.15],
+      [350, { ty: 4, rt: -5 }, 0.14],
+      [700, { ty: 0, rt: 0 }, 0.12]
+    ] },
+    yawn: { weight: 6, steps: [
+      [0, { ty: 5, sc: 1.05 }, 0.12],
+      [600, { ty: 1, sc: 0.99 }, 0.12],
+      [1100, { ty: 0, sc: 1 }, 0.1]
+    ] },
+    drink: { weight: 7, item: { icon: '☕', kind: 'drink' }, keep: 22000, steps: [
+      [0,   { ty: 1, rt: 0 }, 0.14],
+      [260, { ty: 2, rt: -3, tx: -1 }, 0.12],
+      [900, { ty: 4, rt: -4 }, 0.1],
+      [1550,{ ty: 1, rt: 0 }, 0.12]
+    ] },
+    read: { weight: 7, item: { icon: '📖', kind: 'read' }, keep: 26000, steps: [
+      [0,   { ty: 1, rt: 0 }, 0.12],
+      [260, { ty: 3, rt: 2 }, 0.12],
+      [1300,{ ty: 4, rt: 2, tx: -1 }, 0.1],
+      [1950,{ ty: 1, rt: 0 }, 0.12]
+    ] },
+    phone: { weight: 8, item: { icon: '📱', kind: 'phone' }, keep: 32000, steps: [
+      [0,   { ty: 1, rt: 0 }, 0.12],
+      [240, { ty: 2, rt: -2 }, 0.12],
+      [1300,{ ty: 2, rt: -3 }, 0.1],
+      [1850,{ ty: 1, rt: 0 }, 0.12]
+    ] }
+  };
+  /* 兔娘专属：耳朵抖 / 转圈跳舞 / 比心跳 */
+  const RABBIT_EXTRA = {
+    earTwitch: { weight: 20, steps: [
+      [0, { sc: 1.03, ty: -4, rt: 2 }, 0.24],
+      [140, { sc: 0.985, ty: 3, rt: -2 }, 0.24],
+      [300, { sc: 1.03, ty: -4, rt: 2 }, 0.24],
+      [450, { sc: 0.99, ty: 1, rt: 0 }, 0.2],
+      [680, { sc: 1, ty: 0 }, 0.16]
+    ] },
+    dance: { weight: 10, steps: [
+      [0, { rt: 7, ty: -6, sc: 1.02 }, 0.16],
+      [240, { rt: -7, ty: -2 }, 0.14],
+      [480, { rt: 6, ty: -8, sc: 1.03 }, 0.14],
+      [720, { rt: -5, ty: -3 }, 0.13],
+      [980, { rt: 0, ty: 0, sc: 1 }, 0.12]
+    ] },
+    heartJump: { weight: 16, steps: [
+      [0, { ty: -14, rt: 4, sc: 1.04 }, 0.22],
+      [320, { ty: 0, rt: 0 }, 0.14],
+      [640, { ty: -8, rt: -3 }, 0.18],
+      [960, { ty: 0, rt: 0 }, 0.12]
+    ] }
+  };
+  function idlePool() {
+    if (lastSkinId.startsWith('doubaotu')) return Object.assign({}, IDLE_ACTIONS, RABBIT_EXTRA);
+    return IDLE_ACTIONS;
+  }
+  function actionDuration(a) {
+    const body = a.steps && a.steps.length ? a.steps[a.steps.length - 1][0] : 0;
+    return Math.max(body, a.item ? 2150 : 0) + 350;
+  }
+
+  /* ---------- Action Director：动作锁 + 序列执行器 ---------- */
+  async function executeSequence(action) {
+    if (director.lock) return;
+    director.lock = true;
+    director.cancelled = false;
+    try {
+      if (action.item) await itemPickup(action.item);
+      if (action.eyesClosed && rig.on) setBlinkFrame('closed');
+      for (const [d, pose, spd] of action.steps) {
+        if (director.cancelled) break;
+        await motionBus.play('petBody', pose, { at: d, speed: spd });
+      }
+      if (action.eyesClosed && rig.on) setBlinkFrame('none');
+      if (director.cancelled) return;
+      if (action.item) {
+        if (action.keep) {
+          await motionBus.play('itemBody', ITEM_POSE.held, { speed: 0.18 });
+          keepHeld(action.keep);
+        } else {
+          await itemStow();
+        }
+      }
+      if (!director.cancelled && Math.random() < 0.35) {
+        showMini((ACTION_LINES[Math.floor(Math.random() * ACTION_LINES.length)]));
+      }
+    } finally {
+      director.lock = false;
+    }
+  }
+  function scheduleIdle() {
+    clearTimeout(idleTimer);
+    const rabbitMode = lastSkinId.startsWith('doubaotu');
+    const gap = rabbitMode ? 4200 + Math.random() * 6800 : 9000 + Math.random() * 14000;
+    idleTimer = setTimeout(() => {
+      if (director.lock) { scheduleIdle(); return; }
+      const pool = idlePool();
+      const pool2 = {};
+      for (const k in pool) {
+        if (pool[k].item && itemState.held && itemState.held !== pool[k].item.icon) continue;
+        pool2[k] = pool[k];
+      }
+      const total = Object.keys(pool2).reduce((a, k) => a + pool2[k].weight, 0);
+      let r = Math.random() * total;
+      let action = pool2.lookAround;
+      for (const k in pool2) {
+        r -= pool2[k].weight;
+        if (r <= 0) { action = pool2[k]; break; }
+      }
+      executeSequence(action);
+      idleTimer = setTimeout(scheduleIdle, actionDuration(action) + (rabbitMode ? 1600 + Math.random() * 2400 : 2600 + Math.random() * 4200));
+    }, gap);
+  }
+  let idleTimer = null;
+
+  /* ---------- 点击互动（弹跳姿态曲线 + 爱心 + 台词，不瞬切） ---------- */
+  let clickCount = 0;
+  let clickTimer = null;
+  function petBounce() {
+    director.cancelled = true;
+    motionBus.pose('petBody', { ty: -18, sc: 1.06 }, { speed: 0.25 });
+    setTimeout(() => motionBus.pose('petBody', { ty: 2, sc: 0.99 }, { speed: 0.18 }), 160);
+    setTimeout(() => motionBus.pose('petBody', { ty: 0, sc: 1 }, { speed: 0.08 }), 340);
+    clearTimeout(clickTimer);
+    clickTimer = setTimeout(() => {}, 600);
+  }
+
+  /* ---------- 口型/说话：气泡弹出时轻点头+微张（Live2D 说话由模型动画承担；贴图皮肤点头） ---------- */
+  function onTap() {
+    try { if (window.L2Dwidget && L2Dwidget.trigger) L2Dwidget.trigger('tap', {}); } catch (_) {}
+    clickCount++;
+    petBounce();
+    if (clickCount % 3 === 0) doBlink();
+    spawnHearts(clickCount % 3 === 0 ? 6 : 3);
+    if (clickCount % 5 === 0) {
+      showMini(JOKES[Math.floor(Math.random() * JOKES.length)]);
+    } else if (clickCount % 7 === 0) {
+      showMini(timeGreeting());
+    } else {
+      showMini(randomChat());
+    }
+  }
+
+  /* ---------- 初始化：贴图伪骨骼引擎为主（与桌面一致），Live2D 仅在可用时叠加增强 ---------- */
+  function boot() {
+    ensureRig();
+    /* 悬浮窗拖动手势 + 点击互动：
+     * 原生环境（Android 悬浮窗）通过 FloatingPetBridge.dragTo 拖动窗口；
+     * 浏览器预览无桥 → 自动降级：未拖动即点击互动（气泡/爱心）。 */
+    let dragState = null;
+    document.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest('#floatClose')) return;
+      dragState = { sx: e.clientX, sy: e.clientY, ox: 0, oy: 0, moved: false, id: e.pointerId };
+      if (window.FloatingPetBridge && window.FloatingPetBridge.getPos) {
+        try {
+          const p = window.FloatingPetBridge.getPos().split(',');
+          dragState.ox = parseInt(p[0], 10) || 0;
+          dragState.oy = parseInt(p[1], 10) || 0;
+        } catch (_) { /* 桥异常忽略 */ }
+      }
+    }, { passive: true });
+    document.addEventListener('pointermove', (e) => {
+      if (!dragState || e.pointerId !== dragState.id) return;
+      const dx = e.clientX - dragState.sx;
+      const dy = e.clientY - dragState.sy;
+      if (!dragState.moved && Math.hypot(dx, dy) > 26) dragState.moved = true;
+      if (dragState.moved && window.FloatingPetBridge && window.FloatingPetBridge.dragTo) {
+        try {
+          window.FloatingPetBridge.dragTo(dragState.ox + dx, dragState.oy + dy);
+          e.preventDefault();
+        } catch (_) { /* 桥异常忽略 */ }
+      }
+    }, { passive: false });
+    document.addEventListener('pointerup', (e) => {
+      if (!dragState || e.pointerId !== dragState.id) return;
+      const wasMoved = dragState.moved;
+      dragState = null;
+      if (!wasMoved) onTap();
+    }, { passive: true });
+    // 可选增强：若 L2Dwidget 引擎可用（Electron 类环境），叠加模型层（呼吸/表情更丰富）
+    try {
+      if (window.L2Dwidget) {
+        window.L2Dwidget.init({
+          model: { jsonPath: 'assets/live2d/shizuku.model.json', scale: 1 },
+          display: { superSample: 2, width: 200, height: 440, position: 'right', hOffset: 0, vOffset: 0 },
+          mobile: { show: false },
+          react: { opacity: 1 },
+          dev: { border: false },
+          dialog: { enable: false, hitokoto: false }
+        });
+      }
+    } catch (_) { /* 引擎不可用时贴图伪骨骼已足够 */ }
+  }
+
+  /* ---------- 初始化 ---------- */
+  motionBus.init('petBody', petBody);
+  motionBus.init('itemBody', heldItem);
+  let lastFrame = performance.now();
+  (function frame(now) {
+    motionBus.tick(Math.min((now - lastFrame) / 1000, 0.05));
+    lastFrame = now;
+    requestAnimationFrame(frame);
+  })(performance.now());
+  scheduleIdle();
+
+  if (document.readyState === 'complete') {
+    setTimeout(boot, 300);
+  } else {
+    window.addEventListener('load', () => setTimeout(boot, 300));
+  }
+
+  /* ---------- 关闭悬浮窗（原生桥） ---------- */
+  try {
+    $('floatClose').addEventListener('click', () => {
+      try {
+        if (window.FloatingPetBridge && window.FloatingPetBridge.hide) window.FloatingPetBridge.hide();
+        else if (window.floatingPet && window.floatingPet.hide) window.floatingPet.hide();
+      } catch (_) { /* 浏览器预览时无桥 */ }
+    });
+  } catch (_) { /* 预览环境无关闭钮 */ }
+})();

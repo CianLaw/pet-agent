@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>团团 · 悬浮桌宠</title>
+  <link rel="stylesheet" href="style-float.css" />
+</head>
+<body>
+  <!-- 背景光斑（悬浮窗内极简） -->
+  <div class="blob blob-a"></div>
+  <div class="blob blob-b"></div>
+
+  <!-- 顶部关闭手柄（半透明小圆钮） -->
+  <button id="floatClose" aria-label="关闭悬浮窗" title="关闭悬浮窗">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+  </button>
+
+  <!-- 气泡 -->
+  <div class="mini-bubble hidden" id="miniBubble"><span id="miniBubbleText"></span></div>
+
+  <!-- 爱心特效层 -->
+  <div class="fx" id="fx"></div>
+
+  <!-- 宠物主体：贴图伪骨骼容器（与桌面一致：呼吸/眨眼/耳丝带弹簧/motionBus 连续插值） -->
+  <div class="pet-wrap">
+    <div id="petBody">
+      <img class="float-pet-img" id="floatPetImg" alt="" draggable="false" />
+    </div>
+  </div>
+
+  <!-- 头部/眨眼叠加层 -->
+  <div class="skin-head-group hidden" id="skinHeadGroup">
+    <img class="rig-head" id="rigHead" alt="" />
+    <img class="rig-blink rig-blink-half" id="rigBlinkHalf" alt="" />
+    <img class="rig-blink rig-blink-closed" id="rigBlinkClosed" alt="" />
+  </div>
+  <div id="partWrap"></div>
+
+  <!-- 物品持有层（喝咖啡/看书/玩手机，过渡进出不凭空出现） -->
+  <div class="held-item hidden" id="heldItem"></div>
+
+  <script src="vendor/L2Dwidget.min.js"></script>
+  <script src="float.js?v=6"></script>
+</body>
+</html>

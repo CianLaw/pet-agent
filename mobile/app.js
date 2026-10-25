@@ -144,9 +144,10 @@
   $('skinMask').addEventListener('click', closeSkin);
 
   /* ---------- 设置 ---------- */
-  const APP_VERSION = '5.9.2';
+  const APP_VERSION = '5.9.3';
   const REPO = 'CianLaw/pet-agent';
   const CHANGELOG = [
+    { v: '5.9.3', items: ['手机版悬浮窗桌宠：团团常驻手机桌面（需授权）', '悬浮窗可拖动、可关闭，点击有互动', '动作引擎升级：连续插值+呼吸+眨眼+行为链，不再生硬切换'] },
     { v: '5.9.2', items: ['手机版与桌面端百分百同步', '新增软件封面（关于区）', '新增「检查更新」一键检测下载'] },
     { v: '5.9.1', items: ['兔娘 IP 命名「团团」', '团团专属台词库（傲娇口吻）', '皮肤简介展示'] },
     { v: '5.9.0', items: ['伪骨骼实体化：分层物理+眨眼+物品状态机', '动作导演器统一调度'] },
@@ -173,10 +174,88 @@
     $('setApiBase').value = cfg.apiBase || 'https://api.deepseek.com';
     $('setApiKey').value = cfg.apiKey || '';
     $('setChatModel').value = cfg.chatModel || 'deepseek-chat';
+    if (window.__floatRefresh) window.__floatRefresh();
   };
   const closeSet = () => $('setSheet').classList.add('hidden');
   $('btnSettings').addEventListener('click', openSet);
   $('setMask').addEventListener('click', closeSet);
+
+  /* ---------- 悬浮窗桌宠（v5.9.3，Android 原生桥，浏览器预览自动降级隐藏） ---------- */
+  const floatBtn = $('btnFloat');
+  const floatStatus = $('floatStatus');
+  let floatApi = null;
+  try {
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.FloatingPet) {
+      floatApi = window.Capacitor.Plugins.FloatingPet;
+    }
+  } catch (_) { /* 非原生环境 */ }
+  const FLOAT_TEXT = {
+    needPerm: '未授权 · 点击「去授权」跳转系统设置',
+    idle: '已授权 · 点击开启悬浮窗',
+    running: '正在悬浮 · 团团在桌面上陪着你',
+    unsupported: '此环境不支持悬浮窗'
+  };
+  async function refreshFloatUI() {
+    if (!floatApi) {
+      const row = document.querySelector('.float-row');
+      if (row) row.classList.add('hidden');
+      return;
+    }
+    try {
+      const perm = await floatApi.hasPermission();
+      const open = await floatApi.isOpen();
+      if (!perm.granted) {
+        floatStatus.textContent = FLOAT_TEXT.needPerm;
+        floatBtn.textContent = '去授权';
+        floatBtn.disabled = false;
+      } else if (open.open) {
+        floatStatus.textContent = FLOAT_TEXT.running;
+        floatBtn.textContent = '关闭悬浮窗';
+        floatBtn.disabled = false;
+      } else {
+        floatStatus.textContent = FLOAT_TEXT.idle;
+        floatBtn.textContent = '开启悬浮窗';
+        floatBtn.disabled = false;
+      }
+    } catch (e) {
+      floatStatus.textContent = FLOAT_TEXT.unsupported;
+      floatBtn.disabled = true;
+    }
+  }
+  floatBtn.addEventListener('click', async () => {
+    if (!floatApi) return;
+    try {
+      const perm = await floatApi.hasPermission();
+      if (!perm.granted) {
+        await floatApi.requestPermission();
+        floatStatus.textContent = '授权后将自动刷新状态';
+        return;
+      }
+      const open = await floatApi.isOpen();
+      if (open.open) {
+        await floatApi.close();
+      } else {
+        try {
+          await floatApi.open();
+        } catch (err) {
+          if (err && (err.message === 'need_permission' || err.code === 'need_permission')) {
+            floatStatus.textContent = FLOAT_TEXT.needPerm;
+            floatBtn.textContent = '去授权';
+            return;
+          }
+          throw err;
+        }
+      }
+      await refreshFloatUI();
+    } catch (e) {
+      floatStatus.textContent = FLOAT_TEXT.unsupported;
+      floatBtn.disabled = true;
+    }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && floatApi) refreshFloatUI();
+  });
+  window.__floatRefresh = refreshFloatUI;
   $('setSave').addEventListener('click', () => {
     const cfg = {
       apiBase: $('setApiBase').value.trim(),

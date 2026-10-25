@@ -205,3 +205,13 @@ body {
 .skin-card-info em { display: block; margin-top: 4px; font-style: normal; font-size: 9.5px; line-height: 1.5; color: rgba(255,255,255,0.45); min-height: 26px; }
 
 .hidden { display: none !important; }
+
+/* 悬浮窗桌宠（v5.9.3） */
+.float-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px; padding: 11px 12px; margin-bottom: 8px;
+}
+.float-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.float-info b { font-size: 13px; }
+.float-info span { font-size: 10.5px; color: rgba(255,255,255,0.5); word-break: break-word; }

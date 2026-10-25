@@ -24,6 +24,12 @@
 
         </activity>
 
+        <!-- 悬浮窗桌宠服务（v5.9.3） -->
+        <service
+            android:name=".FloatingPetService"
+            android:exported="false"
+            android:stopWithTask="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -38,4 +44,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 悬浮窗：在其他应用上层显示桌宠（v5.9.3） -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 </manifest>

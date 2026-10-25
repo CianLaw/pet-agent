@@ -664,3 +664,17 @@ body { position: relative; }
   72%  { transform: translateY(-16px) scale(1); opacity: 1; }
   100% { transform: translateY(-40px) scale(.9) rotate(10deg); opacity: 0; }
 }
+
+/* ================= 手持物品层：拿出/使用/收回 ================= */
+.held-item {
+  position: absolute;
+  right: 46px;
+  bottom: 138px;
+  font-size: 34px;
+  line-height: 1;
+  z-index: 6;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 3px 6px rgba(20,30,80,.35));
+}
+.held-item.hidden { display: none; }

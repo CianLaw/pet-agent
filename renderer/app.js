@@ -20,6 +20,7 @@
   const walkSprite = $('walkSprite');
   const sleepOverlay = $('sleepOverlay');
   const sleepZzz = $('sleepZzz');
+  const heldItem = $('heldItem');
 
   let state = null;
   let lastSpeed = { ts: 0, tokens: 0 };
@@ -127,6 +128,7 @@
     };
     motionBus.init('petBody', pet);
     motionBus.init('skinBody', document.getElementById('skinImage'));
+    motionBus.init('itemBody', heldItem);
     let lastFrame = performance.now();
     (function frame(now) {
       motionBus.tick(Math.min((now - lastFrame) / 1000, 0.05));
@@ -138,43 +140,91 @@
      * 每个待机行为是一串有头有尾的短序列（起点→过程→落回 Idle），
      * 按权重抽取，行为之间由 Idle 呼吸层兜底衔接，不硬切。
      * 任何用户交互（点击等）会打断当前行为，让位给互动。
+     * 物品行为（喝水/看书/玩手机）带 heldItem 持有状态：
+     * 物品按"拿出→使用→收回"过渡帧进出，不凭空出现/消失。
      */
     const IDLE_ACTIONS = {
-      lookAround: { weight: 22, steps: [
+      lookAround: { weight: 20, steps: [
         [0, { rt: 6, tx: 3 }, 0.14],
         [700, { rt: -6, tx: -3 }, 0.1],
         [1500, { rt: 0, tx: 0 }, 0.09]
       ] },
-      nod: { weight: 18, steps: [
+      nod: { weight: 16, steps: [
         [0, { ty: 4, rt: 3 }, 0.16],
         [260, { ty: 0, rt: 0 }, 0.14],
         [520, { ty: 3, rt: 2 }, 0.16],
         [780, { ty: 0, rt: 0 }, 0.12]
       ] },
-      tilt: { weight: 16, steps: [
+      tilt: { weight: 14, steps: [
         [0, { rt: 10 }, 0.15],
         [900, { rt: -4 }, 0.12],
         [1400, { rt: 0 }, 0.1]
       ] },
-      stretch: { weight: 12, steps: [
+      stretch: { weight: 11, steps: [
         [0, { ty: -8, sc: 1.06 }, 0.13],
         [900, { ty: 0, sc: 1 }, 0.1]
       ] },
-      rubEyes: { weight: 12, steps: [
+      rubEyes: { weight: 11, steps: [
         [0, { ty: 6, rt: 6 }, 0.15],
         [350, { ty: 4, rt: -5 }, 0.14],
         [700, { ty: 0, rt: 0 }, 0.12]
       ] },
-      yawn: { weight: 8, steps: [
+      yawn: { weight: 6, steps: [
         [0, { ty: 5, sc: 1.05 }, 0.12],
         [600, { ty: 1, sc: 0.99 }, 0.12],
         [1100, { ty: 0, sc: 1 }, 0.1]
+      ] },
+      drink: { weight: 7, item: { icon: '☕', steps: [
+        [0, { ty: 34, op: 0 }, 0.3],
+        [260, { ty: -86, op: 1 }, 0.2],
+        [1200, { ty: -84, op: 1 }, 0.08],
+        [1750, { ty: -132, op: 0 }, 0.18]
+      ] }, steps: [
+        [0, { ty: 2, rt: -2 }, 0.12],
+        [900, { ty: 5, rt: -3 }, 0.1],
+        [1500, { ty: 0, rt: 0 }, 0.12]
+      ] },
+      read: { weight: 7, item: { icon: '📖', steps: [
+        [0, { tx: 42, ty: 24, op: 0, rt: 8 }, 0.3],
+        [260, { tx: 16, ty: -58, op: 1, rt: 2 }, 0.2],
+        [1500, { tx: 14, ty: -58, op: 1, rt: 0 }, 0.06],
+        [2050, { tx: -30, ty: -120, op: 0, rt: -6 }, 0.18]
+      ] }, steps: [
+        [0, { ty: 2 }, 0.1],
+        [1200, { ty: 4, rt: 2 }, 0.09],
+        [1800, { ty: 0, rt: 0 }, 0.12]
+      ] },
+      phone: { weight: 8, item: { icon: '📱', steps: [
+        [0, { tx: 40, ty: 30, op: 0, rt: -10 }, 0.3],
+        [240, { tx: 22, ty: -52, op: 1, rt: -2 }, 0.22],
+        [1400, { tx: 20, ty: -50, op: 1, rt: 0 }, 0.06],
+        [1900, { tx: 34, ty: -120, op: 0, rt: 8 }, 0.18]
+      ] }, steps: [
+        [0, { ty: 1, rt: 2 }, 0.1],
+        [1100, { ty: 4, rt: -2 }, 0.09],
+        [1700, { ty: 0, rt: 0 }, 0.12]
       ] }
     };
     const idleDirector = {
       timers: [],
       run(action) {
         this.cancel();
+        // 物品行为：先显示物品（透明就位），按"拿出→使用→收回"过渡帧执行
+        if (action.item) {
+          heldItem.textContent = action.item.icon;
+          heldItem.classList.remove('hidden');
+          motionBus.pose('itemBody', { tx: 0, ty: 30, op: 0, rt: 0 }, { speed: 0.5 });
+          action.item.steps.forEach(([d, pose, spd]) => {
+            this.timers.push(setTimeout(() => motionBus.pose('itemBody', pose, { speed: spd }), d));
+          });
+          // 收回完成后隐藏物品、复位（下次再"拿出"）
+          const lastStep = action.item.steps[action.item.steps.length - 1];
+          this.timers.push(setTimeout(() => {
+            heldItem.classList.add('hidden');
+            motionBus.pose('itemBody', { tx: 0, ty: 30, op: 0, rt: 0 }, { speed: 0.4 });
+          }, lastStep[0] + 650));
+        }
+        // 身体姿态与物品并行
         action.steps.forEach(([d, pose, spd]) => {
           this.timers.push(setTimeout(() => motionBus.pose('petBody', pose, { speed: spd }), d));
         });
@@ -182,6 +232,8 @@
       cancel() {
         this.timers.forEach(clearTimeout);
         this.timers = [];
+        heldItem.classList.add('hidden');
+        motionBus.pose('itemBody', { tx: 0, ty: 30, op: 0, rt: 0 }, { speed: 0.5 });
       }
     };
     function pickIdleAction() {

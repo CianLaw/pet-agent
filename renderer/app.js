@@ -30,6 +30,7 @@
   let walkAnim = null;
   let petMode = 'awake';   // awake | idle(发呆) | sleep(睡觉)
   let modeTimer = null;
+  let lastSkinId = '';     // 当前皮肤 id（motionBus/行为层引用，必须在本文件最前声明）
 
   const CHAT_LINES = [
     '主人来啦～',
@@ -106,8 +107,13 @@
         if (!isFinite(dt) || dt <= 0) dt = 0.016;
         this.t += dt;
         // Idle 基底层：永远在运行的呼吸浮动（任何动作结束后自然落回）
-        const idleTy = Math.sin(this.t * 1.7) * 2.2;
-        const idleSc = 1 + Math.sin(this.t * 1.7) * 0.008;
+        // Idle 呼吸基底：兔娘皮肤幅度更大更明显（活蹦乱跳感），其他皮肤温和
+        const rabbitMode = lastSkinId.startsWith('doubaotu');
+        const amp = rabbitMode ? 4.6 : 2.2;
+        const scAmp = rabbitMode ? 0.016 : 0.008;
+        const freq = rabbitMode ? 2.2 : 1.7;
+        const idleTy = Math.sin(this.t * freq) * amp;
+        const idleSc = 1 + Math.sin(this.t * freq) * scAmp;
         for (const id in this.els) {
           const c = this.cur[id], tg = this.tgt[id];
           const k = 1 - Math.exp(-this.spd[id] * dt * 60);
@@ -238,25 +244,25 @@
     };
     /* 豆包兔娘专属动作：耳朵抖 / 转圈跳舞 / 比心跳（仅 doubaotu 系列皮肤启用） */
     const RABBIT_EXTRA = {
-      earTwitch: { weight: 14, steps: [
-        [0, { sc: 1.02, ty: -3 }, 0.22],
-        [160, { sc: 0.985, ty: 2 }, 0.22],
-        [320, { sc: 1.02, ty: -3 }, 0.22],
-        [480, { sc: 0.99, ty: 1 }, 0.2],
-        [700, { sc: 1, ty: 0 }, 0.16]
+      earTwitch: { weight: 20, steps: [
+        [0, { sc: 1.03, ty: -4, rt: 2 }, 0.24],
+        [140, { sc: 0.985, ty: 3, rt: -2 }, 0.24],
+        [300, { sc: 1.03, ty: -4, rt: 2 }, 0.24],
+        [450, { sc: 0.99, ty: 1, rt: 0 }, 0.2],
+        [680, { sc: 1, ty: 0 }, 0.16]
       ] },
-      twirl: { weight: 6, steps: [
+      twirl: { weight: 10, steps: [
         [0, { rt: 90, ty: -4 }, 0.18],
         [700, { rt: 220 }, 0.14],
         [1300, { rt: 360 }, 0.12],
         [1700, { rt: 360, ty: 0 }, 0.1],
         [2200, { rt: 0 }, 0.08]
       ] },
-      heartJump: { weight: 12, steps: [
-        [0, { ty: -12, rt: 3, sc: 1.03 }, 0.2],
-        [350, { ty: 0, rt: 0 }, 0.14],
-        [700, { ty: -6, rt: -2 }, 0.16],
-        [1000, { ty: 0, rt: 0 }, 0.12]
+      heartJump: { weight: 16, steps: [
+        [0, { ty: -14, rt: 4, sc: 1.04 }, 0.22],
+        [320, { ty: 0, rt: 0 }, 0.14],
+        [640, { ty: -8, rt: -3 }, 0.18],
+        [960, { ty: 0, rt: 0 }, 0.12]
       ] }
     };
     function idleActionPool() {
@@ -278,11 +284,13 @@
     let idleTimer = null;
     function scheduleIdle() {
       clearTimeout(idleTimer);
-      const gap = 9000 + Math.random() * 14000;
+      // 兔娘皮肤动作更频繁（更"活"），其他皮肤 9~23s
+      const rabbitMode = lastSkinId.startsWith('doubaotu');
+      const gap = rabbitMode ? 4200 + Math.random() * 6800 : 9000 + Math.random() * 14000;
       idleTimer = setTimeout(() => {
         if (petMode === 'sleep' || document.hidden) { scheduleIdle(); return; }
         idleDirector.run(pickIdleAction());
-        idleTimer = setTimeout(scheduleIdle, 2600 + Math.random() * 4200);
+        idleTimer = setTimeout(scheduleIdle, rabbitMode ? 1800 + Math.random() * 2600 : 2600 + Math.random() * 4200);
       }, gap);
     }
     scheduleIdle();
@@ -601,15 +609,18 @@
     });
   }
 
-  // 互动/拖动统一绑在 Live2D 容器（#live2d-widget）上，
-  // 不再绑 #pet 外层（避免同一事件触发两次互动与拖动）
-  const tryBindLive2D = () => {
-    const el = document.getElementById('live2d-widget') || document.querySelector('#live2d-widget');
-    if (el) {
-      bindPetEvents(el);
+  // 互动/拖动绑定到"当前可见的宠物主体"：
+  // 贴图皮肤 → skinImage（live2d-widget 此时被隐藏，事件必须跟到可见层）；
+  // Live2D 皮肤 → live2d-widget。皮肤切换后重新绑定。
+  const bindPetTarget = () => {
+    const target = (lastSkin && lastSkin.type === 'image')
+      ? document.getElementById('skinImage')
+      : (document.getElementById('live2d-widget') || document.querySelector('#live2d-widget'));
+    if (target) {
+      bindPetEvents(target);
       setTimeout(updateMousePassthrough, 500);
     } else {
-      setTimeout(tryBindLive2D, 300);
+      setTimeout(bindPetTarget, 300);
     }
   };
 
@@ -939,7 +950,6 @@
   /* ---------- 订阅状态 ---------- */
   /* 皮肤：贴图皮肤时隐藏 Live2D、显示贴图层；Live2D 皮肤时反之 */
   let lastSkin = null;
-  let lastSkinId = '';
   function applySkin(skin) {
     lastSkin = skin && skin.type ? skin : null;
     lastSkinId = (skin && skin.type === 'image' && skin.file) ? (skin.file.split('/')[2] || '') : '';
@@ -951,11 +961,13 @@
       img.style.display = 'block';
       if (l2d) l2d.style.display = 'none';
       walkSprite.style.backgroundImage = `url('../${skin.file}')`;
+      setTimeout(bindPetTarget, 400);   // 事件绑定跟到新的可见主体
       return;
     }
     img.style.display = 'none';
     if (l2d) l2d.style.display = '';
     walkSprite.style.backgroundImage = '';
+    setTimeout(bindPetTarget, 400);
   }
   // Live2D 容器由第三方库异步创建：容器出现后重放当前皮肤（避免贴图皮肤下 Live2D 重叠）
   function ensureSkinAfterLive2D() {
@@ -1175,8 +1187,8 @@
       dev: { border: false },
       dialog: { enable: false, hitokoto: false }
     });
-    // 互动/拖动只绑定在 Live2D 容器上（修复双重触发）
-    setTimeout(tryBindLive2D, 500);
+    // 互动/拖动绑定到当前可见的宠物主体（贴图皮肤时是 skinImage）
+    setTimeout(bindPetTarget, 500);
     setTimeout(ensureSkinAfterLive2D, 600);
     console.log('[renderer] Live2D init requested');
   }

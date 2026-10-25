@@ -67,8 +67,72 @@
 
   function fmtNetwork(n) {
     if (!n || !n.ok) return '离线';
+
+
     return n.rtt + 'ms ' + n.grade;
   }
+
+    /* ---------- MotionBus：连续参数表演引擎 ----------
+     * 放弃"播放动画片段/瞬间切类"的离散思路：
+     * 每个可见姿态参数（translateY/X、scale、rotate、opacity）维护
+     * 当前值 → 目标值的连续插值链路，每帧用缓动逼近；
+     * Idle 呼吸微动作为常驻底层，任何动作结束后自然落回它——
+     * 姿态变化有起点、有路径、有落点，不再"闪现/凭空变出来"。
+     */
+    const motionBus = {
+      els: {}, t: 0,
+      cur: {}, tgt: {}, spd: {},
+      init(id, el) {
+        this.els[id] = el;
+        this.cur[id] = { ty: 0, tx: 0, sc: 1, rt: 0, op: 1 };
+        this.tgt[id] = { ...this.cur[id] };
+        this.spd[id] = 0.12;
+      },
+      // 设置目标姿态（连续逼近）；可用 setTimeout 追加下一段目标形成"动作序列"
+      pose(id, target, opts = {}) {
+        if (!this.els[id]) return;
+        if (opts.speed != null) this.spd[id] = opts.speed;
+        const c = this.tgt[id];
+        this.tgt[id] = {
+          ty: target.ty != null ? target.ty : c.ty,
+          tx: target.tx != null ? target.tx : c.tx,
+          sc: target.sc != null ? target.sc : c.sc,
+          rt: target.rt != null ? target.rt : c.rt,
+          op: target.op != null ? target.op : c.op
+        };
+      },
+      tick(dt) {
+        if (!isFinite(dt) || dt <= 0) dt = 0.016;
+        this.t += dt;
+        // Idle 基底层：永远在运行的呼吸浮动（任何动作结束后自然落回）
+        const idleTy = Math.sin(this.t * 1.7) * 2.2;
+        const idleSc = 1 + Math.sin(this.t * 1.7) * 0.008;
+        for (const id in this.els) {
+          const c = this.cur[id], tg = this.tgt[id];
+          const k = 1 - Math.exp(-this.spd[id] * dt * 60);
+          c.ty += (tg.ty - c.ty) * k;
+          c.tx += (tg.tx - c.tx) * k;
+          c.sc += (tg.sc - c.sc) * k;
+          c.rt += (tg.rt - c.rt) * k;
+          c.op += (tg.op - c.op) * k;
+          const el = this.els[id];
+          if (id === 'petBody') {
+            // 动作层与 Idle 层叠加输出
+            el.style.transform = `translateY(${c.ty + idleTy}px) translateX(${c.tx}px) scale(${c.sc * idleSc}) rotate(${c.rt}deg)`;
+          } else {
+            el.style.transform = `translateY(${c.ty}px) translateX(${c.tx}px) scale(${c.sc}) rotate(${c.rt}deg)`;
+          }
+        }
+      }
+    };
+    motionBus.init('petBody', pet);
+    motionBus.init('skinBody', document.getElementById('skinImage'));
+    let lastFrame = performance.now();
+    (function frame(now) {
+      motionBus.tick(Math.min((now - lastFrame) / 1000, 0.05));
+      lastFrame = now;
+      requestAnimationFrame(frame);
+    })(performance.now());
 
   const DT_STATUS_TEXT = {
     in_progress: '处理中…',
@@ -245,9 +309,10 @@
     setTimeout(() => el.remove(), 1200);
   }
   function petChew() {
-    // 吃动作：左右快速轻摆（吃食物）
-    pet.classList.add('chew');
-    setTimeout(() => pet.classList.remove('chew'), 500);
+    // 吃动作：左右快速轻摆（吃食物）——姿态曲线：左摆→右摆→回中
+    motionBus.pose('petBody', { rt: 3 }, { speed: 0.2 });
+    setTimeout(() => motionBus.pose('petBody', { rt: -3 }, { speed: 0.2 }), 150);
+    setTimeout(() => motionBus.pose('petBody', { rt: 0 }, { speed: 0.12 }), 320);
     spawnFood();
     spawnHearts(3);
   }
@@ -268,9 +333,13 @@
     if (mode === 'sleep') {
       sleepOverlay.classList.remove('hidden');
       sleepZzz.classList.remove('hidden');
+      // 缓慢下沉入睡（而不是瞬间变出来）
+      motionBus.pose('petBody', { ty: 12, sc: 0.985 }, { speed: 0.06 });
     } else {
       sleepOverlay.classList.add('hidden');
       sleepZzz.classList.add('hidden');
+      // 自然浮起回位，落回 Idle 呼吸层
+      motionBus.pose('petBody', { ty: 0, sc: 1 }, { speed: 0.07 });
     }
   }
   function wakePet() {
@@ -306,11 +375,12 @@
 
   /* ---------- 点击互动（弹跳 + 爱心 + 台词） ---------- */
   function petBounce() {
-    pet.classList.remove('bounce');
-    void pet.offsetWidth;
-    pet.classList.add('bounce');
+    // 弹跳姿态曲线：快速上弹 → 轻微回弹 → 缓缓回中（不再瞬切 class）
+    motionBus.pose('petBody', { ty: -18, sc: 1.06 }, { speed: 0.25 });
+    setTimeout(() => motionBus.pose('petBody', { ty: 2, sc: 0.99 }, { speed: 0.18 }), 160);
+    setTimeout(() => motionBus.pose('petBody', { ty: 0, sc: 1 }, { speed: 0.08 }), 340);
     clearTimeout(clickTimer);
-    clickTimer = setTimeout(() => pet.classList.remove('bounce'), 500);
+    clickTimer = setTimeout(() => {}, 600);
   }
 
   function bindPetEvents(container) {

@@ -102,6 +102,7 @@ body {
 .mw-skin-thumb { width: 100%; height: 84px; border-radius: 9px; object-fit: cover; background: rgba(255,255,255,0.08); margin-bottom: 8px; }
 .mw-skin-name { font-size: 12px; font-weight: 600; }
 .mw-skin-type { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+.mw-skin-desc { font-size: 9.5px; color: rgba(255,255,255,0.42); margin-top: 4px; line-height: 1.45; min-height: 26px; }
 .mw-skin-badge { display: inline-block; margin-top: 6px; font-size: 9.5px; padding: 2px 7px; border-radius: 5px; background: rgba(130,170,255,0.35); color: #dbe7ff; }
 .mw-skin-actions { display: flex; gap: 10px; }
 
@@ -215,6 +216,7 @@ body[data-ui="light"] .mw-skin-card.using {
 }
 body[data-ui="light"] .mw-skin-thumb { background: rgba(51,65,94,0.06); }
 body[data-ui="light"] .mw-skin-type { color: rgba(51,65,94,0.5); }
+body[data-ui="light"] .mw-skin-desc { color: rgba(51,65,94,0.45); }
 body[data-ui="light"] .mw-skin-badge { background: color-mix(in srgb, var(--ui-accent) 24%, white); color: color-mix(in srgb, var(--ui-accent) 70%, #22304d); }
 body[data-ui="light"] .mw-module-row { background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.85); }
 body[data-ui="light"] .mw-module-desc { color: rgba(51,65,94,0.5); }

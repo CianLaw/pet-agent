@@ -696,12 +696,16 @@ function scanSkins() {
       if (!st.isDirectory()) continue;
       const petImg = path.join(d, 'pet.png');
       if (!fs.existsSync(petImg)) continue;
-      let name = dir;
+      let name = dir, desc = '';
       const meta = path.join(d, 'skin.json');
       if (fs.existsSync(meta)) {
-        try { name = JSON.parse(fs.readFileSync(meta, 'utf8')).name || dir; } catch (_) {}
+        try {
+          const m = JSON.parse(fs.readFileSync(meta, 'utf8'));
+          name = m.name || dir;
+          desc = m.desc || '';
+        } catch (_) {}
       }
-      list.push({ id: 'skin:' + dir, name, type: 'image', thumb: petImg, using: using === 'skin:' + dir });
+      list.push({ id: 'skin:' + dir, name, desc, type: 'image', thumb: petImg, using: using === 'skin:' + dir });
     }
   }
   return list;

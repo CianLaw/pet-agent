@@ -1,17 +1,82 @@
 {
-  "name": "豆包兔娘",
-  "theme": { "mode": "light", "accent": "#5b93d4" },
+  "name": "豆包兔娘·团团",
+  "theme": {
+    "mode": "light",
+    "accent": "#5b93d4"
+  },
   "rig": {
     "blink": true,
-    "eyes": [[221, 208, 246, 231], [271, 205, 297, 229]],
+    "eyes": [
+      [
+        221,
+        208,
+        246,
+        231
+      ],
+      [
+        271,
+        205,
+        297,
+        229
+      ]
+    ],
     "neckY": 0.41,
     "parts": {
       "body": "pet_body.png",
       "head": "pet_head.png",
-      "earL": { "file": "earL.png", "box": [158, 22, 242, 152], "pivot": [200, 142] },
-      "earR": { "file": "earR.png", "box": [266, 18, 338, 152], "pivot": [302, 142] },
-      "ribbonL": { "file": "ribbonL.png", "box": [82, 392, 196, 560], "pivot": [148, 396] },
-      "ribbonR": { "file": "ribbonR.png", "box": [298, 398, 404, 548], "pivot": [350, 404] }
+      "earL": {
+        "file": "earL.png",
+        "box": [
+          158,
+          22,
+          242,
+          152
+        ],
+        "pivot": [
+          200,
+          142
+        ]
+      },
+      "earR": {
+        "file": "earR.png",
+        "box": [
+          266,
+          18,
+          338,
+          152
+        ],
+        "pivot": [
+          302,
+          142
+        ]
+      },
+      "ribbonL": {
+        "file": "ribbonL.png",
+        "box": [
+          82,
+          392,
+          196,
+          560
+        ],
+        "pivot": [
+          148,
+          396
+        ]
+      },
+      "ribbonR": {
+        "file": "ribbonR.png",
+        "box": [
+          298,
+          398,
+          404,
+          548
+        ],
+        "pivot": [
+          350,
+          404
+        ]
+      }
     }
-  }
+  },
+  "desc": "住在电脑里的傲娇小兔娘。圆脸圆耳圆团子，爱吃胡萝卜，爱睡懒觉，偶尔帮你盯着外卖。"
 }

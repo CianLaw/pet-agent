@@ -83,6 +83,7 @@ contextBridge.exposeInMainWorld('petAgent', {
   playWith: () => ipcRenderer.send('pet-play'),
   chat: (text) => ipcRenderer.invoke('pet-chat', text),
   showContextMenu: () => ipcRenderer.send('show-context-menu'),
+  openMainWindow: () => ipcRenderer.send('open-main-window'),
   // 拖文件给宠物吃：渲染层传入 File 对象，用 webUtils 取真实路径，再由主进程移到废纸篓
   getPathForFile: (file) => {
     try {

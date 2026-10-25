@@ -4,6 +4,19 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
+  /* ---------- UI 主题跟随皮肤（与悬浮窗一致） ---------- */
+  function applyMwTheme(skin) {
+    const theme = skin && skin.theme;
+    if (theme && theme.mode === 'light') {
+      document.body.dataset.ui = 'light';
+      if (theme.accent) document.documentElement.style.setProperty('--ui-accent', theme.accent);
+    } else {
+      document.body.dataset.ui = 'dark';
+      document.documentElement.style.removeProperty('--ui-accent');
+    }
+  }
+  window.petAgent.getState().then((s) => applyMwTheme(s && s.skin));
+
   /* ---------- 导航切换 ---------- */
   function activatePage(page) {
     document.querySelectorAll('.mw-nav-item').forEach((n) => n.classList.toggle('active', n.dataset.page === page));
@@ -64,7 +77,12 @@
       card.addEventListener('click', () => {
         if (s.using) return;
         window.petAgent.setSkin(s.id).then((r) => {
-          if (r && r.ok) { renderSkins(); loadSkins(); }
+          if (r && r.ok) {
+            renderSkins();
+            loadSkins();
+            // 切肤后刷新主题（主窗口不随桌宠窗口重载，需自己取新皮肤的主题）
+            window.petAgent.getState().then((st) => applyMwTheme(st && st.skin));
+          }
         });
       });
       grid.appendChild(card);

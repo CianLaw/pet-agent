@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- 主气泡：余额/今日用量/实时速率（纯色质感） -->
+  <!-- 主气泡（详情面板，点胶囊展开；带关闭钮） -->
   <div id="bubble" class="bubble liquid-glass hidden">
     <span class="glass-blob b1"></span>
     <span class="glass-blob b2"></span>
@@ -15,6 +15,7 @@
     <div class="bubble-head">
       <span class="bubble-title">豆包 · 用量</span>
       <span id="balance" class="balance">--</span>
+      <span id="bubbleClose" class="chat-close" title="关闭">✕</span>
     </div>
     <div class="bubble-row"><span class="label">今日已用</span><span id="todayCost" class="value">--</span></div>
     <div class="bubble-row"><span class="label">本次消耗</span><span id="lastTokens" class="value">--</span></div>
@@ -43,6 +44,14 @@
     <span class="glass-blob b1"></span>
     <span class="glass-blob b2"></span>
     <span class="glass-tail"></span>
+  </div>
+
+  <!-- 迷你状态胶囊：点宠物显示一行关键信息，点它本身展开详情面板 -->
+  <div id="statusPill" class="liquid-glass hidden" title="点击查看完整信息">
+    <span class="sp-item"><span class="sp-ico">❤️</span><span id="spAff">--</span></span>
+    <span class="sp-item" id="spBatWrap"><span class="sp-ico">🔋</span><span id="spBat">--</span></span>
+    <span class="sp-item"><span class="sp-ico">📶</span><span id="spNet">--</span></span>
+    <span class="sp-item"><span class="sp-ico">💻</span><span id="spCpu">--</span></span>
   </div>
 
   <!-- AI 聊天小窗（气泡式，最高优先级） -->

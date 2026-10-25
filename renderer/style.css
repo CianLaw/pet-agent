@@ -354,8 +354,12 @@ body { position: relative; }
   object-fit: contain;
   display: none;
   z-index: 5;
-  pointer-events: none;
+  cursor: grab;
+  /* 必须可命中：贴图皮肤的点击/拖拽事件绑在本元素上（v5.5.5 修复） */
+  pointer-events: auto;
 }
+
+#skinImage:active { cursor: grabbing; }
 
 #pet:active { cursor: grabbing; }
 
@@ -678,3 +682,223 @@ body { position: relative; }
   filter: drop-shadow(0 3px 6px rgba(20,30,80,.35));
 }
 .held-item.hidden { display: none; }
+
+/* ================= 伪骨骼层（v5.6）：头颈分层视差 + 眨眼帧 =================
+ * skin-head-group 是 pet.png 的复制层，用 CSS mask 在脖颈处渐隐，
+ * 独立呼吸相位 + 朝鼠标微移 → 平贴图获得"头部真的在动"的骨骼感。
+ * 眨眼帧（eyes_half/eyes_closed）叠在其上随头部一起动。 */
+.skin-head-group {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 200px;
+  height: 440px;
+  z-index: 6;
+  pointer-events: none;
+  display: none;
+  transform-origin: 50% 41%;
+  will-change: transform;
+}
+.skin-head-group img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.skin-head-group img.rig-blink {
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+#skinImage { transition: opacity .45s ease; }
+/* 散步时淡出站立主体（含骨骼层），避免"既站着又在走"的重叠 */
+.walk-hidden-main {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ================= 皮肤主题层（v5.7）：UI 跟随 skin.json theme =================
+ * theme.mode=light 时 body[data-ui=light] 生效：所有弹窗从深灰玻璃换成
+ * 皮肤同色系的浅色磨砂玻璃，主题色 --ui-accent 由 skin.json 注入。
+ * 未声明 theme 的皮肤（如 Live2D shizuku）保持原深色玻璃。 */
+:root { --ui-accent: #7ab0ff; }
+body[data-ui="light"] {
+  --ui-text: #35435f;
+  --ui-text-dim: rgba(53, 67, 95, 0.78);
+  --ui-text-faint: rgba(53, 67, 95, 0.5);
+  --ui-tshadow: none;
+}
+/* ---- 玻璃底座：白瓷蓝玻璃 ---- */
+body[data-ui="light"] .liquid-glass {
+  background:
+    radial-gradient(130% 95% at 12% 0%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 52%),
+    linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(236,245,255,0.92) 100%);
+  border: 1px solid rgba(255,255,255,0.95);
+  border-top-color: rgba(255,255,255,1);
+  box-shadow:
+    0 10px 30px rgba(96,136,196,0.3),
+    0 2px 6px rgba(96,136,196,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+  color: var(--ui-text);
+}
+body[data-ui="light"] .liquid-glass .glass-blob {
+  opacity: .3;
+}
+body[data-ui="light"] .bubble .glass-blob.b1,
+body[data-ui="light"] .chat-panel .glass-blob.b1,
+body[data-ui="light"] .settings-panel .glass-blob.b1,
+body[data-ui="light"] .mini-bubble .glass-blob.b1 {
+  background: color-mix(in srgb, var(--ui-accent) 55%, white);
+}
+body[data-ui="light"] .bubble .glass-blob.b2,
+body[data-ui="light"] .chat-panel .glass-blob.b2,
+body[data-ui="light"] .settings-panel .glass-blob.b2,
+body[data-ui="light"] .mini-bubble .glass-blob.b2 {
+  background: color-mix(in srgb, var(--ui-accent) 35%, white);
+}
+body[data-ui="light"] .bubble .glass-tail,
+body[data-ui="light"] .chat-panel .glass-tail,
+body[data-ui="light"] .mini-bubble .glass-tail {
+  background: linear-gradient(160deg, rgba(255,255,255,0.97) 0%, rgba(236,245,255,0.98) 100%);
+  border-right: 1px solid rgba(255,255,255,0.95);
+  border-bottom: 1px solid rgba(205,224,246,0.9);
+}
+/* ---- 用量面板文字 ---- */
+body[data-ui="light"] .bubble-title { color: var(--ui-text-dim); text-shadow: var(--ui-tshadow); }
+body[data-ui="light"] .balance { color: #1f8f6d; text-shadow: none; }
+body[data-ui="light"] .bubble-row .label { color: var(--ui-text-faint); text-shadow: var(--ui-tshadow); }
+body[data-ui="light"] .bubble-row .value { color: var(--ui-text); text-shadow: var(--ui-tshadow); }
+body[data-ui="light"] .bubble-row .value.empty { color: var(--ui-text-faint); }
+body[data-ui="light"] .doubao-task.dt-progress { color: #c07a1f; }
+body[data-ui="light"] .doubao-task.dt-done { color: #1f8f6d; }
+body[data-ui="light"] .doubao-task.dt-fail { color: #cc5252; }
+body[data-ui="light"] .bubble-time { color: var(--ui-text-faint); }
+/* ---- 好感度状态条 ---- */
+body[data-ui="light"] .pet-status { border-top: 1px solid rgba(53,67,95,0.14); }
+body[data-ui="light"] .status-stage { color: #b06a1f; text-shadow: var(--ui-tshadow); }
+body[data-ui="light"] .status-aff { color: var(--ui-text-dim); }
+body[data-ui="light"] .status-name { color: var(--ui-text-faint); }
+body[data-ui="light"] .status-bar { background: rgba(53,67,95,0.12); }
+/* ---- 聊天窗 ---- */
+body[data-ui="light"] .chat-title { color: var(--ui-text); }
+body[data-ui="light"] .chat-close { color: var(--ui-text-faint); }
+body[data-ui="light"] .chat-close:hover { background: rgba(53,67,95,0.1); }
+body[data-ui="light"] .chat-log::-webkit-scrollbar-thumb,
+body[data-ui="light"] .settings-panel::-webkit-scrollbar-thumb { background: rgba(90,120,170,0.35); }
+body[data-ui="light"] .chat-msg.user {
+  background: linear-gradient(135deg, var(--ui-accent), color-mix(in srgb, var(--ui-accent) 70%, #6c7fd4));
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 60%, white);
+  color: #fff;
+}
+body[data-ui="light"] .chat-msg.pet {
+  background: rgba(255,255,255,0.82);
+  border: 1px solid rgba(173,199,232,0.65);
+  color: var(--ui-text);
+}
+body[data-ui="light"] .chat-input-row input {
+  background: rgba(255,255,255,0.8);
+  border: 1px solid rgba(160,190,225,0.6);
+  color: var(--ui-text);
+}
+body[data-ui="light"] .chat-input-row input:focus { border-color: color-mix(in srgb, var(--ui-accent) 65%, white); }
+body[data-ui="light"] .chat-input-row input::placeholder { color: var(--ui-text-faint); }
+body[data-ui="light"] .chat-hint { color: var(--ui-text-faint); }
+/* ---- 设置面板 ---- */
+body[data-ui="light"] .settings-title { color: var(--ui-text); }
+body[data-ui="light"] .settings-section { background: rgba(255,255,255,0.6); border: 1px solid rgba(173,199,232,0.55); }
+body[data-ui="light"] .settings-section-title { color: var(--ui-text-dim); }
+body[data-ui="light"] .settings-field > span { color: var(--ui-text-faint); }
+body[data-ui="light"] .settings-field input[type="text"],
+body[data-ui="light"] .settings-field input[type="password"],
+body[data-ui="light"] .settings-field input[type="number"] {
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(160,190,225,0.6);
+  color: var(--ui-text);
+}
+body[data-ui="light"] .settings-field input:focus {
+  border-color: color-mix(in srgb, var(--ui-accent) 65%, white);
+  background: #fff;
+}
+body[data-ui="light"] .settings-field input::placeholder { color: var(--ui-text-faint); }
+body[data-ui="light"] .settings-switch > span { color: var(--ui-text-dim); }
+body[data-ui="light"] .settings-version { color: var(--ui-text-dim); }
+body[data-ui="light"] .settings-version b { color: var(--ui-text); }
+body[data-ui="light"] .settings-update-status { color: var(--ui-text-faint); }
+body[data-ui="light"] .settings-btn {
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(160,190,225,0.6);
+  color: var(--ui-text);
+}
+body[data-ui="light"] .settings-btn:hover { background: #fff; }
+body[data-ui="light"] .settings-btn.primary {
+  background: linear-gradient(135deg, var(--ui-accent), color-mix(in srgb, var(--ui-accent) 72%, #7f92e0));
+  border-color: color-mix(in srgb, var(--ui-accent) 55%, white);
+  color: #fff;
+}
+body[data-ui="light"] .settings-tip { color: var(--ui-text-faint); }
+/* ---- 台词气泡（含用量强提醒变体） ---- */
+body[data-ui="light"] .mini-bubble { color: var(--ui-text); font-weight: 600; }
+body[data-ui="light"] .mini-bubble.usage {
+  background:
+    radial-gradient(130% 95% at 12% 0%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 52%),
+    linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(236,245,255,0.96) 100%);
+}
+/* ---- 拖拽提示 ---- */
+body[data-ui="light"] .drop-hint {
+  background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(238,246,255,0.96));
+  border: 1px solid color-mix(in srgb, #2fa77f 45%, white);
+  color: #1f7a5c;
+  box-shadow: 0 4px 18px rgba(96,136,196,0.35);
+}
+
+/* ================= 迷你状态胶囊（v5.8）：点宠物显示一行关键信息 =================
+ * 替代旧版"点一下弹出大面板挡视野"：胶囊只有一行，5 秒自动消失；
+ * 点胶囊本体才展开完整详情面板。样式跟随皮肤主题。 */
+#statusPill {
+  position: absolute;
+  right: 14px;
+  top: 64px;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  z-index: 40;
+  cursor: pointer;
+  animation: miniPop .3s cubic-bezier(.34,1.56,.64,1);
+  transition: opacity .3s ease, transform .3s ease, visibility .3s;
+}
+#statusPill .sp-item { display: flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+#statusPill .sp-ico { font-size: 10px; }
+#statusPill.hidden {
+  display: flex;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(10px);
+}
+/* 详情面板的关闭钮（buddle-head 内） */
+.bubble-head .chat-close { margin-left: 2px; }
+
+/* 分层部件（耳朵/丝带）：绝对定位在贴图坐标系内，pointer-events 关闭以免挡交互 */
+.skin-part {
+  position: absolute;
+  object-fit: fill;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* 部件容器：与 skinImage 同几何（右下 200x440），部件坐标在其内部计算 */
+.skin-part-wrap {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 200px;
+  height: 440px;
+  pointer-events: none;
+  z-index: 5;
+}

@@ -91,6 +91,28 @@ function broadcast(channel, payload) {
   }
 }
 
+/* 皮肤状态：贴图皮肤附带 rig（skin.json 里声明的眨眼眼位/脖颈位置），渲染层据此挂伪骨骼层 */
+function skinState() {
+  const s = config.skin || { type: 'live2d' };
+  if (s.type === 'image' && s.file) {
+    try {
+      // 只取皮肤目录名（单段 basename + 字符白名单），杜绝 config 被手改带来的路径穿越
+      const dir = path.basename(path.dirname(s.file));
+      if (/^[A-Za-z0-9_-]+$/.test(dir)) {
+        const meta = path.join(__dirname, 'assets', 'skin', dir, 'skin.json');
+        if (fs.existsSync(meta)) {
+          const parsed = JSON.parse(fs.readFileSync(meta, 'utf8'));
+          const extra = {};
+          if (parsed.rig) extra.rig = parsed.rig;         // 伪骨骼（眨眼/头颈分层）
+          if (parsed.theme) extra.theme = parsed.theme;   // UI 主题（浅色玻璃+主题色）
+          if (extra.rig || extra.theme) return Object.assign({}, s, extra);
+        }
+      }
+    } catch (_) { /* 无 skin.json 或无 rig：纯贴图 */ }
+  }
+  return s;
+}
+
 function pushFullState() {
   broadcast('state', {
     stats: stats.snapshot(),
@@ -100,7 +122,8 @@ function pushFullState() {
     proxyPort: config.proxyPort,
     apiKeyConfigured: !!(config.apiKey || process.env.DEEPSEEK_API_KEY),
     doubaoTask: doubaoTask,
-    focusMode: focusMode
+    focusMode: focusMode,
+    skin: skinState()
   });
 }
 
@@ -576,25 +599,52 @@ async function init() {
   startVisionLoop();
   // 调试/演示：PET_OPEN_MAIN=1 时启动后自动打开主界面（PET_OPEN_PAGE 可指定首页/皮肤/模块/设置）
   if (process.env.PET_OPEN_MAIN === '1') {
-    setTimeout(() => openMainWindow(process.env.PET_OPEN_PAGE || 'home'), 1500);
+    const envPage = ['home', 'skin', 'module', 'setting'].includes(process.env.PET_OPEN_PAGE)
+      ? process.env.PET_OPEN_PAGE : 'home';
+    setTimeout(() => openMainWindow(envPage), 1500);
   }
 }
 
-app.whenReady().then(init);
-
-app.on('window-all-closed', () => {
+/* 单实例锁：重复点图标/再次启动时聚焦已有桌宠，而不是"看起来没反应"或叠出第二个 */
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
   app.quit();
-});
+} else {
+  app.on('second-instance', () => {
+    if (win && !win.isDestroyed()) {
+      if (!win.isVisible()) win.showInactive();
+      win.focus();
+    }
+  });
+  // 点 Dock 图标 / macOS 激活事件：把桌宠窗口唤到前台（旧版无此处理 → "打不开"的错觉）
+  app.on('activate', () => {
+    if (!win || win.isDestroyed()) createWindow();
+    else {
+      if (!win.isVisible()) win.showInactive();
+      win.focus();
+    }
+  });
+  app.on('window-all-closed', () => {
+    app.quit();
+  });
 
-app.on('will-quit', () => {
-  if (monitor) monitor.stop();
-  if (proxy) proxy.stop();
-  stopWalk();
-  stopVisionLoop();
-});
+  app.on('will-quit', () => {
+    if (monitor) monitor.stop();
+    if (proxy) proxy.stop();
+    stopWalk();
+    stopVisionLoop();
+  });
+
+  app.whenReady().then(init);
+}
 
 /* ---------------- APP 主界面窗口（首页/皮肤/模块/设置） ---------------- */
 let mainWin = null;
+
+/* 主界面入口页白名单（查表校验，page 仅作 URL 查询参数，不参与文件路径） */
+const MAIN_WINDOW_PAGES = { home: true, skin: true, module: true, setting: true };
+// 渲染层文件路径为编译期常量，不接受任何外部输入
+const MAIN_WINDOW_FILE = path.join(__dirname, 'renderer', 'main-window.html');
 
 function openMainWindow(page) {
   if (mainWin && !mainWin.isDestroyed()) {
@@ -606,7 +656,8 @@ function openMainWindow(page) {
     width: 780, height: 580,
     minWidth: 700, minHeight: 520,
     title: '豆包桌宠',
-    backgroundColor: '#1c2438',
+    // 底色跟随皮肤主题（浅色玻璃 / 深色玻璃），避免窗口边缘闪色
+    backgroundColor: (skinState().theme || {}).mode === 'light' ? '#e9eff8' : '#1c2438',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -614,8 +665,8 @@ function openMainWindow(page) {
       nodeIntegration: false
     }
   });
-  const query = ['home', 'skin', 'module', 'setting'].includes(page) ? { query: { page } } : undefined;
-  mainWin.loadFile(path.join(__dirname, 'renderer', 'main-window.html'), query);
+  const safePage = MAIN_WINDOW_PAGES[page] ? page : 'home';
+  mainWin.loadFile(MAIN_WINDOW_FILE, { query: { page: safePage } });
   mainWin.once('ready-to-show', () => mainWin.show());
   mainWin.on('closed', () => { mainWin = null; });
 }
@@ -947,7 +998,7 @@ ipcMain.handle('get-state', () => ({
   apiKeyConfigured: !!(config.apiKey || process.env.DEEPSEEK_API_KEY),
   doubaoTask: doubaoTask,
   focusMode: focusMode,
-  skin: config.skin || { type: 'live2d' }
+  skin: skinState()
 }));
 
 ipcMain.handle('refresh-balance', async () => {
@@ -957,6 +1008,9 @@ ipcMain.handle('refresh-balance', async () => {
 });
 
 ipcMain.handle('quit-app', () => app.quit());
+
+// 双击宠物 → 打开 APP 主界面（完整信息在主界面看，悬浮窗保持清爽）
+ipcMain.on('open-main-window', () => openMainWindow());
 
 // 拖文件给宠物吃：把文件移到系统废纸篓（可恢复，非永久删除）
 ipcMain.handle('trash-files', async (e, paths) => {
@@ -977,17 +1031,19 @@ ipcMain.handle('trash-files', async (e, paths) => {
         });
         done.push(p);
       } else {
-        const trashDir = path.join(os.homedir(), '.Trash');
-        const name = path.basename(p);
-        let dest = path.join(trashDir, name);
+        // 目标恒定在 ~/.Trash 内：名字只取 basename（单段），并做根目录边界校验
+        const name = path.basename(resolved);
+        const dest = path.resolve(trashDir, name);
+        if (dest !== trashDir && !dest.startsWith(trashDir + path.sep)) { failed.push(p); continue; }
         // 重名时加序号，避免覆盖
         let i = 1;
-        while (fs.existsSync(dest)) {
-          dest = path.join(trashDir, `${path.basename(name, path.extname(name))} ${i}${path.extname(name)}`);
+        let finalDest = dest;
+        while (fs.existsSync(finalDest)) {
+          finalDest = path.resolve(trashDir, `${path.basename(name, path.extname(name))} ${i}${path.extname(name)}`);
           i++;
         }
-        fs.renameSync(p, dest);
-        done.push(dest);
+        fs.renameSync(resolved, finalDest);
+        done.push(finalDest);
       }
     } catch (err) {
       failed.push(p);

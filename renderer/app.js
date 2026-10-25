@@ -134,6 +134,77 @@
       requestAnimationFrame(frame);
     })(performance.now());
 
+    /* ---------- 行为层：加权随机待机行为链 ----------
+     * 每个待机行为是一串有头有尾的短序列（起点→过程→落回 Idle），
+     * 按权重抽取，行为之间由 Idle 呼吸层兜底衔接，不硬切。
+     * 任何用户交互（点击等）会打断当前行为，让位给互动。
+     */
+    const IDLE_ACTIONS = {
+      lookAround: { weight: 22, steps: [
+        [0, { rt: 6, tx: 3 }, 0.14],
+        [700, { rt: -6, tx: -3 }, 0.1],
+        [1500, { rt: 0, tx: 0 }, 0.09]
+      ] },
+      nod: { weight: 18, steps: [
+        [0, { ty: 4, rt: 3 }, 0.16],
+        [260, { ty: 0, rt: 0 }, 0.14],
+        [520, { ty: 3, rt: 2 }, 0.16],
+        [780, { ty: 0, rt: 0 }, 0.12]
+      ] },
+      tilt: { weight: 16, steps: [
+        [0, { rt: 10 }, 0.15],
+        [900, { rt: -4 }, 0.12],
+        [1400, { rt: 0 }, 0.1]
+      ] },
+      stretch: { weight: 12, steps: [
+        [0, { ty: -8, sc: 1.06 }, 0.13],
+        [900, { ty: 0, sc: 1 }, 0.1]
+      ] },
+      rubEyes: { weight: 12, steps: [
+        [0, { ty: 6, rt: 6 }, 0.15],
+        [350, { ty: 4, rt: -5 }, 0.14],
+        [700, { ty: 0, rt: 0 }, 0.12]
+      ] },
+      yawn: { weight: 8, steps: [
+        [0, { ty: 5, sc: 1.05 }, 0.12],
+        [600, { ty: 1, sc: 0.99 }, 0.12],
+        [1100, { ty: 0, sc: 1 }, 0.1]
+      ] }
+    };
+    const idleDirector = {
+      timers: [],
+      run(action) {
+        this.cancel();
+        action.steps.forEach(([d, pose, spd]) => {
+          this.timers.push(setTimeout(() => motionBus.pose('petBody', pose, { speed: spd }), d));
+        });
+      },
+      cancel() {
+        this.timers.forEach(clearTimeout);
+        this.timers = [];
+      }
+    };
+    function pickIdleAction() {
+      const total = Object.keys(IDLE_ACTIONS).reduce((a, k) => a + IDLE_ACTIONS[k].weight, 0);
+      let r = Math.random() * total;
+      for (const k in IDLE_ACTIONS) {
+        r -= IDLE_ACTIONS[k].weight;
+        if (r <= 0) return IDLE_ACTIONS[k];
+      }
+      return IDLE_ACTIONS.lookAround;
+    }
+    let idleTimer = null;
+    function scheduleIdle() {
+      clearTimeout(idleTimer);
+      const gap = 9000 + Math.random() * 14000;
+      idleTimer = setTimeout(() => {
+        if (petMode === 'sleep' || document.hidden) { scheduleIdle(); return; }
+        idleDirector.run(pickIdleAction());
+        idleTimer = setTimeout(scheduleIdle, 2600 + Math.random() * 4200);
+      }, gap);
+    }
+    scheduleIdle();
+
   const DT_STATUS_TEXT = {
     in_progress: '处理中…',
     completed: '已完成 ✅',
@@ -310,6 +381,7 @@
   }
   function petChew() {
     // 吃动作：左右快速轻摆（吃食物）——姿态曲线：左摆→右摆→回中
+    idleDirector.cancel();
     motionBus.pose('petBody', { rt: 3 }, { speed: 0.2 });
     setTimeout(() => motionBus.pose('petBody', { rt: -3 }, { speed: 0.2 }), 150);
     setTimeout(() => motionBus.pose('petBody', { rt: 0 }, { speed: 0.12 }), 320);
@@ -331,6 +403,7 @@
     if (mode === petMode) return;
     petMode = mode;
     if (mode === 'sleep') {
+      idleDirector.cancel();
       sleepOverlay.classList.remove('hidden');
       sleepZzz.classList.remove('hidden');
       // 缓慢下沉入睡（而不是瞬间变出来）
@@ -376,6 +449,7 @@
   /* ---------- 点击互动（弹跳 + 爱心 + 台词） ---------- */
   function petBounce() {
     // 弹跳姿态曲线：快速上弹 → 轻微回弹 → 缓缓回中（不再瞬切 class）
+    idleDirector.cancel();
     motionBus.pose('petBody', { ty: -18, sc: 1.06 }, { speed: 0.25 });
     setTimeout(() => motionBus.pose('petBody', { ty: 2, sc: 0.99 }, { speed: 0.18 }), 160);
     setTimeout(() => motionBus.pose('petBody', { ty: 0, sc: 1 }, { speed: 0.08 }), 340);

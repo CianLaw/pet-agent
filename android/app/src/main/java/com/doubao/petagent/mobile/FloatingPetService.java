@@ -147,7 +147,7 @@ public class FloatingPetService extends Service {
         WebView.setWebContentsDebuggingEnabled(true);
 
         final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
-                .addPathHandler("/", new WebViewAssetLoader.AssetsPathHandler(this, "public"))
+                .addPathHandler("/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -185,7 +185,7 @@ public class FloatingPetService extends Service {
         wm.addView(container, lp);
 
         // 从主 App 传入的皮肤名：页面通过 localStorage 读取（主 App 与悬浮窗共享）
-        webView.loadUrl("https://appassets.androidplatform.net/pet-float.html");
+        webView.loadUrl("https://appassets.androidplatform.net/public/pet-float.html");
     }
 
     private int dp(float v) {

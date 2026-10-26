@@ -110,6 +110,7 @@
     headTilt: 0,
     nodPx: 0,
     dragVX: 0,
+    interactLean: 0, interactLeanT: 0,   // 互动时裙摆联动前倾（起→承→落，缓慢回正）
     _prevTilt: 0
   };
   let lastSkinId = currentSkin;
@@ -161,7 +162,8 @@
       Object.assign({ kind: 'ear', z: 5, k: 150, damp: 9, windAmp: 1.1, windFreq: 0.8, phase: 0 }, parts.earL),
       Object.assign({ kind: 'ear', z: 5, k: 150, damp: 9, windAmp: 1.1, windFreq: 0.92, phase: 2.1 }, parts.earR),
       Object.assign({ kind: 'ribbon', z: 6, k: 34, damp: 4.4, windAmp: 3.4, windFreq: 0.55, phase: 1.2 }, parts.ribbonL),
-      Object.assign({ kind: 'ribbon', z: 6, k: 30, damp: 4.0, windAmp: 3.6, windFreq: 0.62, phase: 3.6 }, parts.ribbonR)
+      Object.assign({ kind: 'ribbon', z: 6, k: 30, damp: 4.0, windAmp: 3.6, windFreq: 0.62, phase: 3.6 }, parts.ribbonR),
+      Object.assign({ kind: 'skirt', z: 6, k: 24, damp: 3.4, windAmp: 1.2, windFreq: 0.42, phase: 0.6 }, parts.skirt)
     ];
     for (const def of defs) {
       if (!def || !def.file || !def.box) continue;
@@ -290,14 +292,17 @@
             }
             const tiltVel = rig.headTilt - (rig._prevTilt || 0);
             rig._prevTilt = rig.headTilt;
+            rig.interactLean += (rig.interactLeanT - rig.interactLean) * (1 - Math.exp(-4.5 * dt * 60));
             for (const part of rig.partList) {
               let target;
               if (part.kind === 'ear') {
                 if (Math.random() < dt * 0.35) part.vel += (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 55);
                 target = -tiltVel * 2.4 + Math.sin(this.t * part.windFreq + part.phase) * part.windAmp + rig.followX * 0.9;
               } else {
+                const lean = part.kind === 'skirt' ? rig.interactLean : rig.interactLean * 0.25;
                 target = Math.sin(this.t * part.windFreq + part.phase) * part.windAmp
                   + Math.sin(this.t * 1.7 + part.phase * 2) * part.windAmp * 0.35
+                  + lean
                   - rig.dragVX * 0.045 - rig.followX * 1.1;
               }
               const acc = (target - part.angle) * part.k - part.vel * part.damp;
@@ -337,6 +342,7 @@
       motionBus.snap('itemBody', ITEM_POSE.handHidden);
       heldItem.classList.remove('hidden');
       const seq = ITEM_POSE[spec.kind] || ITEM_POSE.drink;
+      rig.interactLeanT = 7;                       // 抬手：裙摆同向前倾，水杯路径=伸手→握住→举起
       await motionBus.play('itemBody', Object.assign({ op: 1 }, seq.mid), { speed: 0.22 });
       await motionBus.play('itemBody', seq.up, { speed: 0.16 });
       await sleep(700);
@@ -346,9 +352,11 @@
     if (!itemState.held) return;
     itemState.held = null;
     clearTimeout(itemState.stowTimer);
+    rig.interactLeanT = 2;                        // 放下：裙摆缓收，不是瞬回
     await motionBus.play('itemBody', ITEM_POSE.handHidden, { speed: 0.18 });
     heldItem.classList.add('hidden');
     motionBus.snap('itemBody', ITEM_POSE.handHidden);
+    rig.interactLeanT = 0;                        // 完全收好后落回
   }
   function keepHeld(ms) {
     clearTimeout(itemState.stowTimer);

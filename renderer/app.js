@@ -158,6 +158,7 @@
               // ---- 分层部件弹簧物理 ----
               const tiltVel = rig.headTilt - (rig._prevTilt || 0);
               rig._prevTilt = rig.headTilt;
+              rig.interactLean += (rig.interactLeanT - rig.interactLean) * (1 - Math.exp(-4.5 * dt * 60));
               for (const part of rig.partList) {
                 let target;
                 if (part.kind === 'ear') {
@@ -165,9 +166,11 @@
                   if (Math.random() < dt * 0.35) part.vel += (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 55);
                   target = -tiltVel * 2.4 + Math.sin(this.t * part.windFreq + part.phase) * part.windAmp + rig.followX * 0.9;
                 } else {
-                  // 风场：慢波 + 阵风 + 拖动拖尾
+                  // 风场：慢波 + 阵风 + 拖动拖尾 + 互动联动（裙摆随互动前倾）
+                  const lean = part.kind === 'skirt' ? rig.interactLean : rig.interactLean * 0.25;
                   target = Math.sin(this.t * part.windFreq + part.phase) * part.windAmp
                     + Math.sin(this.t * 1.7 + part.phase * 2) * part.windAmp * 0.35
+                    + lean
                     - rig.dragVX * 0.045 - rig.followX * 1.1;
                 }
                 const acc = (target - part.angle) * part.k - part.vel * part.damp;
@@ -198,7 +201,8 @@
       partList: [],          // 耳朵/丝带等独立物理部件
       headTilt: 0,           // 头部当前倾角（跟随身体重心，带滞后）
       nodPx: 0,              // 眨眼时头部轻点（人眨眼会微微低头）
-      dragVX: 0              // 拖动速度（丝带随风摆动的输入）
+      dragVX: 0,             // 拖动速度（丝带随风摆动的输入）
+      interactLean: 0, interactLeanT: 0   // 互动时裙摆联动前倾（起→承→落，缓慢回正）
     };
     function setBlinkFrame(which) {
       if (!rig.on || !rig.blinkHalf) return;
@@ -285,7 +289,8 @@
         Object.assign({ kind: 'ear', z: 5, k: 150, damp: 9, windAmp: 1.1, windFreq: 0.8, phase: 0 }, parts.earL),
         Object.assign({ kind: 'ear', z: 5, k: 150, damp: 9, windAmp: 1.1, windFreq: 0.92, phase: 2.1 }, parts.earR),
         Object.assign({ kind: 'ribbon', z: 6, k: 34, damp: 4.4, windAmp: 3.4, windFreq: 0.55, phase: 1.2 }, parts.ribbonL),
-        Object.assign({ kind: 'ribbon', z: 6, k: 30, damp: 4.0, windAmp: 3.6, windFreq: 0.62, phase: 3.6 }, parts.ribbonR)
+        Object.assign({ kind: 'ribbon', z: 6, k: 30, damp: 4.0, windAmp: 3.6, windFreq: 0.62, phase: 3.6 }, parts.ribbonR),
+        Object.assign({ kind: 'skirt', z: 6, k: 24, damp: 3.4, windAmp: 1.2, windFreq: 0.42, phase: 0.6 }, parts.skirt)
       ];
       for (const def of defs) {
         if (!def || !def.file || !def.box) continue;
@@ -402,6 +407,7 @@
         motionBus.snap('itemBody', ITEM_POSE.handHidden);
         heldItem.classList.remove('hidden');
         const seq = ITEM_POSE[spec.kind] || ITEM_POSE.drink;
+        rig.interactLeanT = 7;                       // 抬手：裙摆同向前倾，水杯路径=伸手→握住→举起
         await motionBus.play('itemBody', Object.assign({ op: 1 }, seq.mid), { speed: 0.22 });
         await motionBus.play('itemBody', seq.up, { speed: 0.16 });
         await sleep(700);                       // 使用一会儿
@@ -411,9 +417,11 @@
       if (!itemState.held) return;
       itemState.held = null;
       clearTimeout(itemState.stowTimer);
+      rig.interactLeanT = 2;                        // 放下：裙摆缓收，不是瞬回
       await motionBus.play('itemBody', ITEM_POSE.handHidden, { speed: 0.18 });
       heldItem.classList.add('hidden');
       motionBus.snap('itemBody', ITEM_POSE.handHidden);
+      rig.interactLeanT = 0;                        // 完全收好后落回
     }
     function keepHeld(ms) {
       clearTimeout(itemState.stowTimer);
@@ -732,21 +740,24 @@
     setTimeout(() => el.remove(), 1200);
   }
   function petChew() {
-    // 吃动作：左右快速轻摆（吃食物）——姿态曲线：左摆→右摆→回中
+    // 吃动作：左右快速轻摆（吃食物）——姿态曲线：左摆→右摆→回中；裙摆随低头前倾缓回
     idleDirector.cancel();
+    rig.interactLeanT = 3;
     motionBus.pose('petBody', { rt: 3 }, { speed: 0.2 });
     setTimeout(() => motionBus.pose('petBody', { rt: -3 }, { speed: 0.2 }), 150);
-    setTimeout(() => motionBus.pose('petBody', { rt: 0 }, { speed: 0.12 }), 320);
+    setTimeout(() => { motionBus.pose('petBody', { rt: 0 }, { speed: 0.12 }); rig.interactLeanT = 0; }, 320);
     spawnFood();
     spawnHearts(3);
   }
   function petPetAnim() {
-    // 摸头：爱心 + 眯眼（眯眼用一颗大爱心在头顶）
+    // 摸头：爱心 + 眯眼（眯眼用一颗大爱心在头顶）；裙摆随身体前倾
+    rig.interactLeanT = 4;
+    motionBus.pose('petBody', { ty: 2, rt: 3, sc: 1.01 }, { speed: 0.16 });
     const el = document.createElement('div');
     el.className = 'head-heart';
     el.textContent = '💗';
     fx.appendChild(el);
-    setTimeout(() => el.remove(), 1100);
+    setTimeout(() => { el.remove(); rig.interactLeanT = 0; }, 1100);
     spawnHearts(4);
   }
 

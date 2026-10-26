@@ -113,6 +113,7 @@
     headTilt: 0,
     nodPx: 0,
     dragVX: 0,
+    interactLean: 0, interactLeanT: 0,   // 互动时裙摆联动前倾（起→承→落，缓慢回正）
     _prevTilt: 0
   };
 
@@ -163,7 +164,8 @@
       Object.assign({ kind: 'ear', z: 5, k: 150, damp: 9, windAmp: 1.1, windFreq: 0.8, phase: 0 }, parts.earL),
       Object.assign({ kind: 'ear', z: 5, k: 150, damp: 9, windAmp: 1.1, windFreq: 0.92, phase: 2.1 }, parts.earR),
       Object.assign({ kind: 'ribbon', z: 6, k: 34, damp: 4.4, windAmp: 3.4, windFreq: 0.55, phase: 1.2 }, parts.ribbonL),
-      Object.assign({ kind: 'ribbon', z: 6, k: 30, damp: 4.0, windAmp: 3.6, windFreq: 0.62, phase: 3.6 }, parts.ribbonR)
+      Object.assign({ kind: 'ribbon', z: 6, k: 30, damp: 4.0, windAmp: 3.6, windFreq: 0.62, phase: 3.6 }, parts.ribbonR),
+      Object.assign({ kind: 'skirt', z: 6, k: 24, damp: 3.4, windAmp: 1.2, windFreq: 0.42, phase: 0.6 }, parts.skirt)
     ];
     for (const def of defs) {
       if (!def || !def.file || !def.box) continue;
@@ -292,14 +294,17 @@
             }
             const tiltVel = rig.headTilt - (rig._prevTilt || 0);
             rig._prevTilt = rig.headTilt;
+            rig.interactLean += (rig.interactLeanT - rig.interactLean) * (1 - Math.exp(-4.5 * dt * 60));
             for (const part of rig.partList) {
               let target;
               if (part.kind === 'ear') {
                 if (Math.random() < dt * 0.35) part.vel += (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 55);
                 target = -tiltVel * 2.4 + Math.sin(this.t * part.windFreq + part.phase) * part.windAmp + rig.followX * 0.9;
               } else {
+                const lean = part.kind === 'skirt' ? rig.interactLean : rig.interactLean * 0.25;
                 target = Math.sin(this.t * part.windFreq + part.phase) * part.windAmp
                   + Math.sin(this.t * 1.7 + part.phase * 2) * part.windAmp * 0.35
+                  + lean
                   - rig.dragVX * 0.045 - rig.followX * 1.1;
               }
               const acc = (target - part.angle) * part.k - part.vel * part.damp;
@@ -339,6 +344,7 @@
       motionBus.snap('itemBody', ITEM_POSE.handHidden);
       heldItem.classList.remove('hidden');
       const seq = ITEM_POSE[spec.kind] || ITEM_POSE.drink;
+      rig.interactLeanT = 7;                       // 抬手：裙摆同向前倾，水杯路径=伸手→握住→举起
       await motionBus.play('itemBody', Object.assign({ op: 1 }, seq.mid), { speed: 0.22 });
       await motionBus.play('itemBody', seq.up, { speed: 0.16 });
       await sleep(700);
@@ -348,9 +354,11 @@
     if (!itemState.held) return;
     itemState.held = null;
     clearTimeout(itemState.stowTimer);
+    rig.interactLeanT = 2;                        // 放下：裙摆缓收，不是瞬回
     await motionBus.play('itemBody', ITEM_POSE.handHidden, { speed: 0.18 });
     heldItem.classList.add('hidden');
     motionBus.snap('itemBody', ITEM_POSE.handHidden);
+    rig.interactLeanT = 0;                        // 完全收好后落回
   }
   function keepHeld(ms) {
     clearTimeout(itemState.stowTimer);
@@ -500,34 +508,38 @@
   function actVisual(key) {
     cancelCurrent();
     if (key === 'feed') {
-      // 喂食：低头看→咀嚼点头（三次小幅起伏）→抬头回正
+      // 喂食：低头看→咀嚼点头（三次小幅起伏）→抬头回正；裙摆随低头前倾缓回
+      rig.interactLeanT = 3;
       motionBus.pose('petBody', { ty: 6, rt: 5, sc: 0.98 }, { speed: 0.18 });
       setTimeout(() => motionBus.pose('petBody', { ty: 8, rt: 6 }, { speed: 0.22 }), 220);
       setTimeout(() => motionBus.pose('petBody', { ty: 5, rt: 4 }, { speed: 0.22 }), 480);
       setTimeout(() => motionBus.pose('petBody', { ty: 7, rt: 5 }, { speed: 0.22 }), 720);
       setTimeout(() => motionBus.pose('petBody', { ty: 3, rt: 2 }, { speed: 0.16 }), 960);
-      setTimeout(() => motionBus.pose('petBody', { ty: 0, rt: 0, sc: 1 }, { speed: 0.08 }), 1250);
+      setTimeout(() => { motionBus.pose('petBody', { ty: 0, rt: 0, sc: 1 }, { speed: 0.08 }); rig.interactLeanT = 0; }, 1250);
       spawnHearts(6, ['🍎', '🍰', '🍖', '🍩', '🥕', '✨']);
     } else if (key === 'pet') {
-      // 摸摸：前倾贴近→微颤回应→回正（贴贴的起承转合）
+      // 摸摸：前倾贴近→微颤回应→回正（贴贴的起承转合）；裙摆随身体前倾
+      rig.interactLeanT = 4;
       motionBus.pose('petBody', { ty: 3, rt: 4, sc: 1.01 }, { speed: 0.16 });
       setTimeout(() => motionBus.pose('petBody', { ty: 2, rt: -2 }, { speed: 0.2 }), 180);
       setTimeout(() => motionBus.pose('petBody', { ty: 3, rt: 3 }, { speed: 0.2 }), 360);
-      setTimeout(() => motionBus.pose('petBody', { ty: 0, rt: 0, sc: 1 }, { speed: 0.1 }), 560);
+      setTimeout(() => { motionBus.pose('petBody', { ty: 0, rt: 0, sc: 1 }, { speed: 0.1 }); rig.interactLeanT = 0; }, 560);
       spawnHearts(7);
     } else if (key === 'play') {
-      // 陪玩：起跳→滞空→落地缓冲→站稳（三段式跳跃曲线）
+      // 陪玩：起跳→滞空→落地缓冲→站稳（三段式跳跃曲线）；起跳时裙摆向后飘
+      rig.interactLeanT = -4;
       motionBus.pose('petBody', { ty: -4, sc: 0.97, rt: 3 }, { speed: 0.2 });
       setTimeout(() => motionBus.pose('petBody', { ty: -22, sc: 1.08, rt: -4 }, { speed: 0.13 }), 120);
       setTimeout(() => motionBus.pose('petBody', { ty: -14, sc: 1.03 }, { speed: 0.12 }), 460);
-      setTimeout(() => motionBus.pose('petBody', { ty: 3, sc: 0.97, rt: 2 }, { speed: 0.18 }), 760);
-      setTimeout(() => motionBus.pose('petBody', { ty: 0, sc: 1, rt: 0 }, { speed: 0.1 }), 1000);
+      setTimeout(() => { motionBus.pose('petBody', { ty: 3, sc: 0.97, rt: 2 }, { speed: 0.18 }); rig.interactLeanT = 1; }, 760);
+      setTimeout(() => { motionBus.pose('petBody', { ty: 0, sc: 1, rt: 0 }, { speed: 0.1 }); rig.interactLeanT = 0; }, 1000);
       spawnHearts(8, ['⭐', '🌟', '✨', '💙', '💫']);
     } else {
-      // 点击：轻弹一下（小幅度起落），有入有出
+      // 点击：轻弹一下（小幅度起落），裙摆跟着颤一下
+      rig.interactLeanT = 2;
       motionBus.pose('petBody', { ty: -8, sc: 1.04, rt: 3 }, { speed: 0.2 });
       setTimeout(() => motionBus.pose('petBody', { ty: 1, sc: 0.99 }, { speed: 0.15 }), 150);
-      setTimeout(() => motionBus.pose('petBody', { ty: 0, sc: 1, rt: 0 }, { speed: 0.08 }), 330);
+      setTimeout(() => { motionBus.pose('petBody', { ty: 0, sc: 1, rt: 0 }, { speed: 0.08 }); rig.interactLeanT = 0; }, 330);
       spawnHearts(3);
     }
   }

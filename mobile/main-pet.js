@@ -117,6 +117,20 @@
       if (pr && pr.catch) pr.catch(() => {});
     } catch (_) {}
   }
+  /* 手势解锁：Android WebView 会拦截无手势的自动播放（问候/天气配音）。
+   * 首次触摸/点击时预播一段静音打通媒体管道，之后的自动配音才能出声。 */
+  function unlockAudio() {
+    try {
+      if (!voiceEl) voiceEl = new Audio();
+      voiceEl.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+      voiceEl.volume = 0;
+      voiceEl.play().catch(() => {});
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    } catch (_) {}
+  }
+  document.addEventListener('touchstart', unlockAudio, { once: true });
+  document.addEventListener('click', unlockAudio, { once: true });
   function voiceGreetKey() {
     const h = new Date().getHours();
     if (h < 6) return 'greet-evening';
@@ -157,7 +171,8 @@
         if (lastWeather && lastWeather.word === word && Math.abs(lastWeather.temp - temp) < 4) return;
         lastWeather = { word, temp };
         const line = weatherLine(word, temp);
-        if (line && !document.hidden) say(line);
+        const vk = word === 'rain' ? 'weather-rain' : word === 'sun' ? 'weather-sun' : word === 'snow' || temp <= 12 ? 'weather-cold' : undefined;
+        if (line && !document.hidden) say(line, vk);
       });
   }
 

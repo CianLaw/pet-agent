@@ -719,6 +719,19 @@
       if (pr && pr.catch) pr.catch(() => {});
     } catch (_) {}
   }
+  /* 手势解锁：Chromium/Electron 会拦截无手势的自动播放（问候/天气配音） */
+  function unlockAudio() {
+    try {
+      if (!voiceEl) voiceEl = new Audio();
+      voiceEl.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+      voiceEl.volume = 0;
+      voiceEl.play().catch(() => {});
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    } catch (_) {}
+  }
+  document.addEventListener('touchstart', unlockAudio, { once: true });
+  document.addEventListener('click', unlockAudio, { once: true });
   function voiceGreetKey() {
     const h = new Date().getHours();
     if (h < 6) return 'greet-evening';
@@ -738,7 +751,7 @@
     if (c.includes('cloud') || c.includes('overcast') || c.includes('fog') || c.includes('mist') || c.includes('haze')) return 'cloud';
     return null;
   }
-  function weatherLine(word, temp) {
+  function weatherLineByWord(word, temp) {
     if (word === 'rain') return '外面下雨啦，出门记得带伞哦';
     if (word === 'snow') return '下雪啦！本兔想出去打滚～';
     if (word === 'sun') return '外面阳光好好，一起晒太阳吧～';
@@ -758,8 +771,9 @@
         const temp = parseInt(cc.temp_C, 10) || 0;
         if (lastWeather && lastWeather.word === word && Math.abs(lastWeather.temp - temp) < 4) return;
         lastWeather = { word, temp };
-        const line = weatherLine(word, temp);
-        if (line) showMini(line, false, 'weather');
+        const line = weatherLineByWord(word, temp);
+        const vk = word === 'rain' ? 'weather-rain' : word === 'sun' ? 'weather-sun' : word === 'snow' || temp <= 12 ? 'weather-cold' : undefined;
+        if (line) showMini(line, false, vk);
       });
   }
 

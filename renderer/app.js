@@ -325,6 +325,10 @@
       requestAnimationFrame(frame);
     })(performance.now());
 
+    /* 天气感知：首屏稳定后查一次，之后每 30 分钟刷新（失败静默） */
+    setTimeout(checkWeather, 6000);
+    setInterval(checkWeather, 30 * 60 * 1000);
+
     /* ---------- 行为层：加权随机待机行为链 ----------
      * 每个待机行为是一串有头有尾的短序列（起点→过程→落回 Idle），
      * 按权重抽取，行为之间由 Idle 呼吸层兜底衔接，不硬切。
@@ -678,12 +682,85 @@
   }
 
   let miniTimer = null;
-  function showMini(text, isUsage) {
+  function showMini(text, isUsage, voiceKey) {
     miniBubble.textContent = text;
     miniBubble.classList.remove('hidden');
     miniBubble.classList.toggle('usage', !!isUsage);
+    if (voiceKey) playVoice(voiceKey);
     clearTimeout(miniTimer);
     miniTimer = setTimeout(() => miniBubble.classList.add('hidden'), isUsage ? 6000 : 2500);
+  }
+
+  /* ---------- 团团配音：预生成台词音频（TTS），说话即发声 ---------- */
+  const VOICE = {
+    'greet-morning': '../assets/sound/greet_morning.ogg',
+    'greet-noon': '../assets/sound/greet_noon.ogg',
+    'greet-afternoon': '../assets/sound/greet_afternoon.ogg',
+    'greet-evening': '../assets/sound/greet_evening.ogg',
+    'feed-yummy': '../assets/sound/feed_yummy.ogg',
+    'feed-love': '../assets/sound/feed_love.ogg',
+    'pet-comfy': '../assets/sound/pet_comfy.ogg',
+    'pet-more': '../assets/sound/pet_more.ogg',
+    'play-with': '../assets/sound/play_with.ogg',
+    'play-happy': '../assets/sound/play_happy.ogg',
+    'weather-rain': '../assets/sound/weather_rain.ogg',
+    'weather-sun': '../assets/sound/weather_sun.ogg',
+    'weather-cold': '../assets/sound/weather_cold.ogg'
+  };
+  let voiceEl = null;
+  function playVoice(key) {
+    const src = VOICE[key];
+    if (!src) return;
+    try {
+      if (!voiceEl) { voiceEl = new Audio(); voiceEl.volume = 0.9; }
+      voiceEl.src = src;
+      voiceEl.currentTime = 0;
+      const pr = voiceEl.play();
+      if (pr && pr.catch) pr.catch(() => {});
+    } catch (_) {}
+  }
+  function voiceGreetKey() {
+    const h = new Date().getHours();
+    if (h < 6) return 'greet-evening';
+    if (h < 11) return 'greet-morning';
+    if (h < 14) return 'greet-noon';
+    if (h < 18) return 'greet-afternoon';
+    return 'greet-evening';
+  }
+
+  /* ---------- 天气感知：下雨/晴天/寒冷提示（拿不到天气静默降级） ---------- */
+  let lastWeather = null;
+  function weatherWord(cond) {
+    const c = (cond || '').toLowerCase();
+    if (c.includes('rain') || c.includes('drizzle') || c.includes('shower') || c.includes('thunder')) return 'rain';
+    if (c.includes('snow') || c.includes('sleet') || c.includes('blizzard')) return 'snow';
+    if (c.includes('sun') || c.includes('clear') || c.includes('fair')) return 'sun';
+    if (c.includes('cloud') || c.includes('overcast') || c.includes('fog') || c.includes('mist') || c.includes('haze')) return 'cloud';
+    return null;
+  }
+  function weatherLine(word, temp) {
+    if (word === 'rain') return '外面下雨啦，出门记得带伞哦';
+    if (word === 'snow') return '下雪啦！本兔想出去打滚～';
+    if (word === 'sun') return '外面阳光好好，一起晒太阳吧～';
+    if (word === 'cloud') return '今天云好多，适合在家陪本兔玩';
+    if (temp <= 12) return '有点冷哦，多穿点再出门';
+    if (temp >= 30) return '好热呀，本兔想喝冰胡萝卜汁～';
+    return null;
+  }
+  function checkWeather() {
+    fetch('https://wttr.in/?format=j1', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((j) => {
+        if (!j || !j.current_condition || !j.current_condition[0]) return;
+        const cc = j.current_condition[0];
+        const word = weatherWord(cc.weatherDesc && cc.weatherDesc[0] && cc.weatherDesc[0].value);
+        const temp = parseInt(cc.temp_C, 10) || 0;
+        if (lastWeather && lastWeather.word === word && Math.abs(lastWeather.temp - temp) < 4) return;
+        lastWeather = { word, temp };
+        const line = weatherLine(word, temp);
+        if (line) showMini(line, false, 'weather');
+      });
   }
 
   function randomChat() {
@@ -781,7 +858,7 @@
   function wakePet() {
     if (petMode === 'awake') return;
     setPetMode('awake');
-    showMini('嗯？叫本兔干嘛～');
+    showMini('嗯？叫本兔干嘛～', false, 'pet-comfy');
   }
   // 定时随机进入发呆/睡觉：发呆 40s 内随机、睡觉只在夜深（0-6 点）或长时间空闲
   function scheduleMode() {
@@ -839,7 +916,7 @@
       petBounce();
       if (clickCount % 3 === 0) doBlink();
       spawnHearts(clickCount % 3 === 0 ? 6 : 3);
-      showMini(randomChat());
+      showMini(randomChat(), false, 'pet-comfy');
       toggleStatusPill();          // 点一下：迷你胶囊（不再弹大面板挡视野）
       window.petAgent.notifyInteract();
 
@@ -1340,20 +1417,20 @@
     petChew();
     doBlink({ hold: 420 });        // 吃到好吃的满足眯眼
     playTone('pop');
-    showMini('好吃好吃！');
+    showMini('好吃好吃！', false, Math.random() < 0.5 ? 'feed-yummy' : 'feed-love');
   });
   window.petAgent.onPetPetHead(() => {
     petPetAnim();
     doBlink({ hold: 500 });        // 被摸头舒服到闭眼
     playTone('ding');
-    showMini('被摸头好舒服～');
+    showMini('被摸头好舒服～', false, Math.random() < 0.5 ? 'pet-comfy' : 'pet-more');
   });
   window.petAgent.onPetPlay(() => {
     petBounce();
     doBlink();
     spawnHearts(6);
     playTone('boing');
-    showMini('玩得好开心！');
+    showMini('玩得好开心！', false, Math.random() < 0.5 ? 'play-with' : 'play-happy');
   });
 
   // 时间每秒刷新

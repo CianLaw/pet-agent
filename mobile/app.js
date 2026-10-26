@@ -30,7 +30,11 @@
   const FOODS = ['🍎', '🍰', '🍖', '🍩', '🥕'];
   function act(key, lineKey) {
     const text = window.__mainPet.pickLine(lineKey || key);
-    window.__mainPet.say(text);
+    let voice;
+    if (key === 'feed') voice = Math.random() < 0.5 ? 'feed-yummy' : 'feed-love';
+    else if (key === 'pet') voice = Math.random() < 0.5 ? 'pet-comfy' : 'pet-more';
+    else if (key === 'play') voice = Math.random() < 0.5 ? 'play-with' : 'play-happy';
+    window.__mainPet.say(text, voice);
     window.__mainPet.actVisual(key);
     window.__mainPet.buzz(16);
     if (key === 'feed') data.hunger = Math.min(100, data.hunger + 12);
@@ -63,7 +67,8 @@
       data.hunger = Math.max(0, data.hunger - 10);
       data.energy = Math.max(0, data.energy - 6);
       save(); render();
-      window.__mainPet.say('主人来啦！本兔等你半天了～');
+      const gkey = (() => { const h = new Date().getHours(); if (h < 6) return 'greet-evening'; if (h < 11) return 'greet-morning'; if (h < 14) return 'greet-noon'; if (h < 18) return 'greet-afternoon'; return 'greet-evening'; })();
+      window.__mainPet.say('主人来啦！本兔等你半天了～', gkey);
     }
   }, 30 * 1000);
   render();
@@ -119,9 +124,10 @@
   $('skinMask').addEventListener('click', closeSkin);
 
   /* ---------- 设置 ---------- */
-  const APP_VERSION = '5.9.5';
+  const APP_VERSION = '5.9.6';
   const REPO = 'CianLaw/pet-agent';
   const CHANGELOG = [
+    { v: '5.9.6', items: ['团团会说话啦：13 句软萌配音，喂食/摸摸/陪玩/问候都有声音回应', '天气感知：下雨/晴天/寒冷团团会提醒你，每 30 分钟自动刷新', '配音+天气：桌面 / 悬浮窗 / 主界面三端同步'] },
     { v: '5.9.5', items: ['新增裙摆物理层：裙摆与飘带随风缓摆，不再直挺挺', '互动联动：喝水抬手裙摆前倾、喂食低头跟随、跳跃后飘，动作起承转合', '桌面 / 悬浮窗 / 主界面三端同步'] },
     { v: '5.9.4', items: ['手机版主界面团团全面活化：呼吸/眨眼/兔耳丝带弹簧，不再僵直站立', '待机行为链：张望/点头/伸懒腰/揉眼/喝水/看书/玩手机，有起承转合', '互动动作序列化：喂食咀嚼、摸摸贴贴、陪玩跳跃，杜绝凭空变出', '统一团团台词库，与悬浮窗/桌面一致'] },
     { v: '5.9.3', items: ['手机版悬浮窗桌宠：团团常驻手机桌面（需授权）', '悬浮窗可拖动、可关闭，点击有互动', '动作引擎升级：连续插值+呼吸+眨眼+行为链，不再生硬切换'] },

@@ -73,19 +73,92 @@
   try { data = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) {}
   let lastSkinId = data.skin || 'doubaotu';
 
-  /* ---------- 说话：气泡 + 头部轻点头 + 呼吸加快（有起承转合） ---------- */
+  /* ---------- 说话：气泡 + 配音 + 头部轻点头 + 呼吸加快（有起承转合） ---------- */
   let bubbleTimer = null;
   let talking = false;
-  function say(text) {
+  function say(text, voiceKey) {
     bubbleText.textContent = text;
     bubble.classList.remove('hidden');
     talking = true;
     rig.nodPx = 1.1;
+    if (voiceKey) playVoice(voiceKey);
     clearTimeout(bubbleTimer);
     bubbleTimer = setTimeout(() => {
       bubble.classList.add('hidden');
       talking = false;
     }, 2500);
+  }
+
+  /* ---------- 团团配音：预生成台词音频（TTS），说话即发声 ---------- */
+  const VOICE = {
+    'greet-morning': 'assets/sound/greet_morning.ogg',
+    'greet-noon': 'assets/sound/greet_noon.ogg',
+    'greet-afternoon': 'assets/sound/greet_afternoon.ogg',
+    'greet-evening': 'assets/sound/greet_evening.ogg',
+    'feed-yummy': 'assets/sound/feed_yummy.ogg',
+    'feed-love': 'assets/sound/feed_love.ogg',
+    'pet-comfy': 'assets/sound/pet_comfy.ogg',
+    'pet-more': 'assets/sound/pet_more.ogg',
+    'play-with': 'assets/sound/play_with.ogg',
+    'play-happy': 'assets/sound/play_happy.ogg',
+    'weather-rain': 'assets/sound/weather_rain.ogg',
+    'weather-sun': 'assets/sound/weather_sun.ogg',
+    'weather-cold': 'assets/sound/weather_cold.ogg'
+  };
+  let voiceEl = null;
+  function playVoice(key) {
+    const src = VOICE[key];
+    if (!src) return;
+    try {
+      if (!voiceEl) { voiceEl = new Audio(); voiceEl.volume = 0.9; }
+      voiceEl.src = src;
+      voiceEl.currentTime = 0;
+      const pr = voiceEl.play();
+      if (pr && pr.catch) pr.catch(() => {});
+    } catch (_) {}
+  }
+  function voiceGreetKey() {
+    const h = new Date().getHours();
+    if (h < 6) return 'greet-evening';
+    if (h < 11) return 'greet-morning';
+    if (h < 14) return 'greet-noon';
+    if (h < 18) return 'greet-afternoon';
+    return 'greet-evening';
+  }
+
+  /* ---------- 天气感知：下雨/晴天/寒冷提示（拿不到天气静默降级，不打扰） ---------- */
+  let lastWeather = null;
+  function weatherWord(cond) {
+    const c = (cond || '').toLowerCase();
+    if (c.includes('rain') || c.includes('drizzle') || c.includes('shower') || c.includes('thunder')) return 'rain';
+    if (c.includes('snow') || c.includes('sleet') || c.includes('blizzard')) return 'snow';
+    if (c.includes('sun') || c.includes('clear') || c.includes('fair')) return 'sun';
+    if (c.includes('cloud') || c.includes('overcast') || c.includes('fog') || c.includes('mist') || c.includes('haze')) return 'cloud';
+    return null;
+  }
+  function weatherLine(word, temp) {
+    if (word === 'rain') return '外面下雨啦，出门记得带伞哦';
+    if (word === 'snow') return '下雪啦！本兔想出去打滚～';
+    if (word === 'sun') return '外面阳光好好，一起晒太阳吧～';
+    if (word === 'cloud') return '今天云好多，适合在家陪本兔玩';
+    if (temp <= 12) return '有点冷哦，多穿点再出门';
+    if (temp >= 30) return '好热呀，本兔想喝冰胡萝卜汁～';
+    return null;
+  }
+  function checkWeather() {
+    fetch('https://wttr.in/?format=j1', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((j) => {
+        if (!j || !j.current_condition || !j.current_condition[0]) return;
+        const cc = j.current_condition[0];
+        const word = weatherWord(cc.weatherDesc && cc.weatherDesc[0] && cc.weatherDesc[0].value);
+        const temp = parseInt(cc.temp_C, 10) || 0;
+        if (lastWeather && lastWeather.word === word && Math.abs(lastWeather.temp - temp) < 4) return;
+        lastWeather = { word, temp };
+        const line = weatherLine(word, temp);
+        if (line && !document.hidden) say(line);
+      });
   }
 
   /* ---------- 粒子特效 ---------- */
@@ -569,6 +642,10 @@
     requestAnimationFrame(frame);
   })(performance.now());
   scheduleIdle();
+
+  /* 天气感知：首屏稳定后查一次，之后每 30 分钟刷新（失败静默） */
+  setTimeout(checkWeather, 5000);
+  setInterval(checkWeather, 30 * 60 * 1000);
 
   if (document.readyState === 'complete') {
     setTimeout(ensureRig, 300);

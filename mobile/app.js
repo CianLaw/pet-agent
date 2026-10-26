@@ -26,46 +26,13 @@
     $('petImg').src = 'assets/skin/' + data.skin + '/pet.png';
   }
 
-  /* ---------- 宠物互动 ---------- */
+  /* ---------- 宠物互动（视觉表演委托给 main-pet.js 表演引擎：起承转合、绝不瞬切） ---------- */
   const FOODS = ['🍎', '🍰', '🍖', '🍩', '🥕'];
-  const LINES = {
-    pet: ['嘿嘿，好舒服～', '再摸摸头嘛！', '喵呜～被摸到了！', '酥酥麻麻的~'],
-    feed: ['这个好好吃！', '主人喂我啦！', '吃饱饱，开心心～', '再来一口嘛'],
-    play: ['陪我玩咯！', '追球球～', '好开心呀！', '再来一局！'],
-    greet: ['主人来啦！', '等你半天了～', '今天也要元气满满哦']
-  };
-  function say(text) {
-    const b = $('bubble');
-    $('bubbleText').textContent = text;
-    b.classList.remove('hidden');
-    clearTimeout(b._t);
-    b._t = setTimeout(() => b.classList.add('hidden'), 2200);
-  }
-  function burst() {
-    const box = $('particles');
-    const icons = ['💗', '💙', '✨', '💖', '🌟'];
-    for (let i = 0; i < 8; i++) {
-      const p = document.createElement('span');
-      p.className = 'particle';
-      p.textContent = icons[Math.floor(Math.random() * icons.length)];
-      p.style.left = (18 + Math.random() * 64) + '%';
-      p.style.animationDelay = (Math.random() * 0.2) + 's';
-      box.appendChild(p);
-      setTimeout(() => p.remove(), 1100);
-    }
-  }
-  function petTick(key) {
-    const img = $('petImg');
-    img.classList.remove('tick', 'bounce');
-    void img.offsetWidth;
-    img.classList.add(key === 'play' ? 'bounce' : 'tick');
-  }
-
   function act(key, lineKey) {
-    const lines = LINES[lineKey || key];
-    say(lines[Math.floor(Math.random() * lines.length)]);
-    burst();
-    petTick(key);
+    const text = window.__mainPet.pickLine(lineKey || key);
+    window.__mainPet.say(text);
+    window.__mainPet.actVisual(key);
+    window.__mainPet.buzz(16);
     if (key === 'feed') data.hunger = Math.min(100, data.hunger + 12);
     if (key === 'pet') { data.affection = Math.min(999, data.affection + 2); data.mood = Math.min(100, data.mood + 6); }
     if (key === 'play') { data.energy = Math.max(0, data.energy - 8); data.mood = Math.min(100, data.mood + 10); data.affection = Math.min(999, data.affection + 3); }
@@ -78,7 +45,14 @@
   $('actPlay').addEventListener('click', () => act('play', 'play'));
   $('petZone').addEventListener('click', (e) => {
     if (e.target.closest('.bubble')) return;
-    act('pet', 'pet');
+    const t = window.__mainPet.pickLine('pet');
+    window.__mainPet.say(t);
+    window.__mainPet.actVisual('pet');
+    window.__mainPet.buzz(16);
+    data.affection = Math.min(999, data.affection + 2);
+    data.mood = Math.min(100, data.mood + 6);
+    data.msgCount++;
+    render(); save();
   });
 
   /* ---------- 状态衰减（跨天） ---------- */
@@ -89,7 +63,7 @@
       data.hunger = Math.max(0, data.hunger - 10);
       data.energy = Math.max(0, data.energy - 6);
       save(); render();
-      say(LINES.greet[Math.floor(Math.random() * LINES.greet.length)]);
+      window.__mainPet.say('主人来啦！本兔等你半天了～');
     }
   }, 30 * 1000);
   render();
@@ -133,7 +107,8 @@
       card.addEventListener('click', () => {
         data.skin = s.id; save(); render();
         $('aboutAvatar').src = 'assets/skin/' + s.id + '/pet.png';
-        closeSkin(); say('换上新形象啦～');
+        window.__mainPet.refreshRig();
+        closeSkin(); window.__mainPet.say('换上新形象啦～');
       });
       list.appendChild(card);
     });
@@ -144,9 +119,10 @@
   $('skinMask').addEventListener('click', closeSkin);
 
   /* ---------- 设置 ---------- */
-  const APP_VERSION = '5.9.3';
+  const APP_VERSION = '5.9.4';
   const REPO = 'CianLaw/pet-agent';
   const CHANGELOG = [
+    { v: '5.9.4', items: ['手机版主界面团团全面活化：呼吸/眨眼/兔耳丝带弹簧，不再僵直站立', '待机行为链：张望/点头/伸懒腰/揉眼/喝水/看书/玩手机，有起承转合', '互动动作序列化：喂食咀嚼、摸摸贴贴、陪玩跳跃，杜绝凭空变出', '统一团团台词库，与悬浮窗/桌面一致'] },
     { v: '5.9.3', items: ['手机版悬浮窗桌宠：团团常驻手机桌面（需授权）', '悬浮窗可拖动、可关闭，点击有互动', '动作引擎升级：连续插值+呼吸+眨眼+行为链，不再生硬切换'] },
     { v: '5.9.2', items: ['手机版与桌面端百分百同步', '新增软件封面（关于区）', '新增「检查更新」一键检测下载'] },
     { v: '5.9.1', items: ['兔娘 IP 命名「团团」', '团团专属台词库（傲娇口吻）', '皮肤简介展示'] },

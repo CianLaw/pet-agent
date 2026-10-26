@@ -230,7 +230,7 @@
     wrap.className = 'skin-part-wrap';
     partWrap.appendChild(wrap);
     rig.partWrap = wrap;
-    const SCALE = 200 / 496, TOP = (440 - 660 * SCALE) / 2;
+    const SCALE = 200 / 992, TOP = (440 - 1320 * SCALE) / 2;
     const defs = [
       Object.assign({ kind: 'ear', z: 5, k: 150, damp: 9, windAmp: 1.1, windFreq: 0.8, phase: 0 }, parts.earL),
       Object.assign({ kind: 'ear', z: 5, k: 150, damp: 9, windAmp: 1.1, windFreq: 0.92, phase: 2.1 }, parts.earR),

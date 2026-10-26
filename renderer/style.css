@@ -227,6 +227,10 @@ body { position: relative; }
 .settings-switch > span { font-size: 11px; color: rgba(255,255,255,0.7); }
 .settings-switch input { width: auto; }
 .settings-version { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.7); margin-bottom: 5px; }
+.settings-version-tap { cursor: pointer; border-radius: 8px; padding: 4px 8px; margin: -4px -8px 1px; transition: background 0.15s; }
+.settings-version-tap:hover { background: rgba(255,255,255,0.07); }
+.settings-log-arrow { color: rgba(255,255,255,0.4); font-size: 11px; margin-left: 4px; }
+.settings-log-hint { font-size: 9.5px; color: rgba(255,255,255,0.38); margin-top: 7px; }
 .settings-version b { color: rgba(255,255,255,0.95); font-weight: 600; }
 .settings-update-status { font-size: 10px; color: rgba(255,255,255,0.6); margin-bottom: 7px; min-height: 13px; line-height: 1.4; }
 .settings-btns { display: flex; gap: 8px; }
@@ -902,3 +906,31 @@ body[data-ui="light"] .drop-hint {
   pointer-events: none;
   z-index: 5;
 }
+
+/* ---- 更新日志弹窗（桌宠设置面板复用）---- */
+.mw-modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; }
+.mw-modal.hidden { display: none; }
+.mw-modal-mask { position: absolute; inset: 0; background: rgba(10,12,24,0.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.mw-modal-box {
+  position: relative; width: min(560px, 90vw); max-height: 76vh;
+  background: rgba(24,30,48,0.97); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px; box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.mw-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.mw-modal-title { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.95); }
+.mw-modal-close { cursor: pointer; color: rgba(255,255,255,0.6); font-size: 15px; padding: 2px 6px; border-radius: 6px; }
+.mw-modal-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.mw-modal-body { padding: 8px 18px 16px; overflow-y: auto; }
+.mw-log-item { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.mw-log-item:last-child { border-bottom: none; }
+.mw-log-head { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+.mw-log-ver { font-size: 13px; font-weight: 700; color: #a9c8ff; }
+.mw-log-date { font-size: 11px; color: rgba(255,255,255,0.45); }
+.mw-log-list { margin: 0; padding-left: 18px; }
+.mw-log-list li { font-size: 12px; line-height: 1.65; color: rgba(255,255,255,0.78); }
+body[data-ui="light"] .mw-modal-box { background: rgba(250,252,255,0.98); border-color: rgba(51,65,94,0.14); }
+body[data-ui="light"] .mw-modal-title { color: #33415e; }
+body[data-ui="light"] .mw-log-ver { color: #4169d0; }
+body[data-ui="light"] .mw-log-list li { color: rgba(51,65,94,0.82); }
+body[data-ui="light"] .mw-log-date { color: rgba(51,65,94,0.5); }

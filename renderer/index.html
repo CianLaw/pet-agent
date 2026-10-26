@@ -96,20 +96,34 @@
       </div>
       <div class="settings-section">
         <div class="settings-section-title">版本与更新</div>
-        <div class="settings-version">
+        <div class="settings-version settings-version-tap" id="setVersionTap" title="点击查看更新日志">
           <span>当前版本 <b id="setCurrentVersion">--</b></span>
           <span>最新版本 <b id="setLatestVersion">--</b></span>
+          <span class="settings-log-arrow">▸</span>
         </div>
         <div class="settings-update-status" id="setUpdateStatus">尚未检查</div>
         <div class="settings-btns">
           <button id="btnCheckUpdate" class="settings-btn">检查更新</button>
           <button id="btnApplyUpdate" class="settings-btn primary" disabled>立即更新</button>
         </div>
+        <div class="settings-log-hint">点击上方版本栏查看更新日志</div>
       </div>
       <div class="settings-btns settings-btns-bottom">
         <button id="btnSaveSettings" class="settings-btn primary">保存设置</button>
       </div>
       <div class="settings-tip">保存后需重启生效 · 更新将自动下载并重启，无需重新安装</div>
+    </div>
+  </div>
+
+  <!-- 更新日志弹窗 -->
+  <div class="mw-modal hidden" id="setChangelogModal">
+    <div class="mw-modal-mask" id="setChangelogMask"></div>
+    <div class="mw-modal-box">
+      <div class="mw-modal-head">
+        <span class="mw-modal-title">更新日志</span>
+        <span class="mw-modal-close" id="setChangelogClose">✕</span>
+      </div>
+      <div class="mw-modal-body" id="setChangelogBody"></div>
     </div>
   </div>
 
@@ -145,6 +159,7 @@
 
   <!-- Live2D 引擎（自包含，含运行时与 WebGL） -->
   <script src="vendor/L2Dwidget.min.js"></script>
+  <script src="changelog.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

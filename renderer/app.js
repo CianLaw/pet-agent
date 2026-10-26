@@ -1119,6 +1119,27 @@
   $('settingsClose').addEventListener('click', closeSettings);
   window.petAgent.onSettingsOpen(openSettings);
 
+  /* 更新日志弹窗：点击版本栏打开（数据源 renderer/changelog.js） */
+  function renderSetChangelog() {
+    const body = $('setChangelogBody');
+    const list = window.CHANGELOG || [];
+    body.innerHTML = list.map((c) => `
+      <div class="mw-log-item">
+        <div class="mw-log-head">
+          <span class="mw-log-ver">v${c.v}</span>
+          <span class="mw-log-date">${c.date || ''}</span>
+        </div>
+        <ul class="mw-log-list">${(c.items || []).map((t) => `<li>${t}</li>`).join('')}</ul>
+      </div>
+    `).join('');
+  }
+  $('setVersionTap').addEventListener('click', () => {
+    renderSetChangelog();
+    $('setChangelogModal').classList.remove('hidden');
+  });
+  $('setChangelogClose').addEventListener('click', () => $('setChangelogModal').classList.add('hidden'));
+  $('setChangelogMask').addEventListener('click', () => $('setChangelogModal').classList.add('hidden'));
+
   $('btnCheckUpdate').addEventListener('click', async () => {
     const btn = $('btnCheckUpdate');
     const status = $('setUpdateStatus');

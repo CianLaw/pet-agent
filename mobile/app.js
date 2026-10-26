@@ -124,9 +124,10 @@
   $('skinMask').addEventListener('click', closeSkin);
 
   /* ---------- 设置 ---------- */
-  const APP_VERSION = '5.9.8';
+  const APP_VERSION = '5.9.9';
   const REPO = 'CianLaw/pet-agent';
   const CHANGELOG = [
+    { v: '5.9.9', items: ['更新日志收纳：不再平铺展开，点「检查更新」那一横即可打开独立日志界面', '查看日志与检查更新拆成两个独立入口：按钮只管检查更新', '手机 / 电脑主窗口 / 桌宠设置面板三端统一'] },
     { v: '5.9.8', items: ['声音不再被系统静音：首次点按自动解锁音频，喂食/摸摸/问候/天气配音稳定出声', '桌面天气播报修复：天气台词在桌面真正生效（网络限制 + 函数冲突一并解决）', '天气台词配上了专属语音：下雨/晴天/寒冷都会开口提醒，三端统一'] },
     { v: '5.9.7', items: ['立绘 2x 高清化：团团全套贴图分辨率翻倍，手机上不再发糊/像素化', '兔娘两款式 + 裙摆/耳/丝带部件同步高清'] },
     { v: '5.9.6', items: ['团团会说话啦：13 句软萌配音，喂食/摸摸/陪玩/问候都有声音回应', '天气感知：下雨/晴天/寒冷团团会提醒你，每 30 分钟自动刷新', '配音+天气：桌面 / 悬浮窗 / 主界面三端同步'] },
@@ -154,7 +155,6 @@
     $('curVer').textContent = '当前版本 v' + APP_VERSION;
     $('aboutVer').textContent = 'v' + APP_VERSION;
     $('aboutAvatar').src = 'assets/skin/' + data.skin + '/pet.png';
-    renderLog();
     const cfg = JSON.parse(localStorage.getItem('doubao_pet_api') || '{}');
     $('setApiBase').value = cfg.apiBase || 'https://api.deepseek.com';
     $('setApiKey').value = cfg.apiKey || '';
@@ -309,7 +309,18 @@
     }
     return 0;
   }
-  $('btnCheckUpdate').addEventListener('click', checkUpdate);
+  $('btnCheckUpdate').addEventListener('click', (e) => {
+    e.stopPropagation();
+    checkUpdate();
+  });
+
+  /* 更新日志界面：点击「检查更新」那一横打开（独立于检查按钮） */
+  $('updateRow').addEventListener('click', () => {
+    renderLog();
+    $('logSheet').classList.remove('hidden');
+  });
+  $('logClose').addEventListener('click', () => $('logSheet').classList.add('hidden'));
+  $('logMask').addEventListener('click', () => $('logSheet').classList.add('hidden'));
 
   /* ---------- 聊天 ---------- */
   const CHAT_KEY = 'doubao_pet_chat';

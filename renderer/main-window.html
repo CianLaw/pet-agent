@@ -90,16 +90,18 @@
         </div>
         <div class="mw-card">
           <div class="mw-section-title">版本与更新</div>
-          <div class="mw-version-line">
-            <span>当前 <b id="mwCurVer">--</b></span>
-            <span>最新 <b id="mwLatVer">--</b></span>
+          <div class="mw-update-tap" id="mwVersionTap" title="点击查看更新日志">
+            <div class="mw-version-line">
+              <span>当前 <b id="mwCurVer">--</b></span>
+              <span>最新 <b id="mwLatVer">--</b></span>
+            </div>
+            <div class="mw-update-status" id="mwUpdateStatus">点击「检查更新」获取最新版本</div>
           </div>
-          <div class="mw-update-status" id="mwUpdateStatus">点击「检查更新」获取最新版本</div>
           <div class="mw-row-right">
             <button class="mw-btn" id="btnCheckUpdate">检查更新</button>
             <button class="mw-btn primary" id="btnApplyUpdate" disabled>立即更新</button>
-            <button class="mw-btn" id="btnChangelog">更新日志</button>
           </div>
+          <div class="mw-log-hint">点击上方版本栏查看更新日志</div>
         </div>
       </section>
     </main>
@@ -117,6 +119,7 @@
     </div>
   </div>
 
+  <script src="changelog.js"></script>
   <script src="main-window.js"></script>
 </body>
 </html>
